@@ -1,6 +1,6 @@
 # CLAUDE.md — Hashcovet daily reels (read this first)
 
-You are maintaining an automated Instagram-reel factory for **Hashcovet** (#covet, "Innovate Your Desire",
+You are maintaining an automated Instagram-reel factory built for a CLIENT, **Hashcovet** (#covet, "Innovate Your Desire",
 hashcovet.com), a video production studio. The owner is **not technical**: do the work yourself, explain in plain
 words, and ask them only for things only they can do (pasting secrets, approving in Telegram, account logins).
 
@@ -36,7 +36,10 @@ Statuses: script_review → producing → video_review → approved → ready_to
      (preview warns).
    - video (`pipeline/render.py` + `templates/reel.html`): timeline is built from real voice-line durations; Playwright
      renders frames, ffmpeg encodes; synthesized original music ducked under voice.
-5. Video preview to Telegram: Approve / Edit caption / Edit hashtags (direct text) / Request change (AI).
+5. Owner rule: at EVERY step the approver can either 🤖 instruct the AI or ✍️ give exact content that is used verbatim.
+   Script preview: Approve / 🤖 Change with AI (`sch`) / ✍️ Edit it myself (`smanq`→`sman`, labelled-line format in
+   `pipeline/manual.py`). Video preview: Approve / Edit caption / Edit hashtags (exact text) / 🤖 Change video with AI
+   (`vch`) / ✍️ Edit script myself (`vmanq`→`vman`, re-renders). New features must keep both options.
    Every change → new preview. Only approved jobs move on. Approved = `status: approved` in `jobs/<id>/job.json`.
 6. **Learning**: every AI change and every direct caption/hashtag edit is distilled into a rule in
    `memory/learnings.json` (`pipeline/common.py:add_learning`), injected into every prompt via `prompts/system.md`.
@@ -51,7 +54,7 @@ Statuses: script_review → producing → video_review → approved → ready_to
 | Writer rules / tone | `prompts/system.md` |
 | Reel format + validation + char limits + allowed icons | `pipeline/spec.py` (+ icon SVGs in `templates/reel.html`) |
 | Design (Hashcovet look) | `templates/reel.html`, fonts in `assets/fonts/` |
-| Actions router | `pipeline/main.py` (`daily remind publish new plan status` + buttons `sok sch vok vcap vtag vch`) |
+| Actions router | `pipeline/main.py` (`daily remind publish new plan status` + buttons `sok sch smanq sman vok vcap vtag vch vmanq vman`) |
 | Per-reel history (every version/edit) | `jobs/<id>/job.json` |
 | Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |

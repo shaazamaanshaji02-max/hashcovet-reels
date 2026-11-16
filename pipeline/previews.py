@@ -22,13 +22,14 @@ def script_preview(job, note=""):
             f"<b>Save:</b> 🎙 {esc(s['vo']['save'])}\n<b>CTA:</b> 🎙 {esc(s['vo']['cta'])}\n\n"
             f"<b>Caption draft:</b>\n{esc(caption_block(s))}")
     j = job["id"]
-    return send_text(text, kb([[("✅ Approve script", f"a|sok|{j}"), ("✏️ Request change", f"a|sch|{j}")]]))
+    return send_text(text, kb([[("✅ Approve script", f"a|sok|{j}")],
+                               [("🤖 Change with AI", f"a|sch|{j}"), ("✍️ Edit it myself", f"a|smanq|{j}")]]))
 
 
 def video_buttons(j):
     return kb([[("✅ Approve video", f"a|vok|{j}")],
                [("📝 Edit caption", f"a|vcap|{j}"), ("#️⃣ Edit hashtags", f"a|vtag|{j}")],
-               [("🎬 Request change (AI)", f"a|vch|{j}")]])
+               [("🤖 Change video with AI", f"a|vch|{j}"), ("✍️ Edit script myself", f"a|vmanq|{j}")]])
 
 
 def video_preview(job, video_path=None, note=""):
@@ -52,3 +53,15 @@ def video_preview(job, video_path=None, note=""):
 
 def notify(text):
     return send_text(text)
+
+
+def manual_prompt(job, act):
+    """Force-reply message with the current script as editable labelled lines."""
+    from manual import to_text
+    where = "script" if act == "sman" else "video script (it will be re-rendered)"
+    text = (f"✍️ Edit the {where} exactly as you want it.\n"
+            f"Copy the block below, change any lines, and send it as a REPLY to this message. "
+            f"Lines you delete stay as they are. Accent words go after a | sign.\n\n"
+            f"<code>{esc(to_text(job['spec']))}</code>\n\n#job:{job['id']} #act:{act}")
+    return tg("sendMessage", chat_id=chat_id(), text=text[:4090], parse_mode="HTML",
+              reply_markup={"force_reply": True, "input_field_placeholder": "Paste your edited lines…"})

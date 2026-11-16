@@ -5,10 +5,10 @@
 // Stateless: edit prompts are sent as force-reply messages tagged with #job and #act; the reply carries them back.
 
 const PROMPTS = {
-  sch: "✏️ What should change in the SCRIPT?",
+  sch: "🤖 What should the AI change in the SCRIPT?",
   vcap: "📝 Send the NEW CAPTION exactly as it should be posted (no hashtags).",
   vtag: "#️⃣ Send the NEW HASHTAGS (space or comma separated, max 5).",
-  vch: "🎬 What should change in the VIDEO? (visuals, voice lines, caption, anything)",
+  vch: "🤖 What should the AI change in the VIDEO? (text, visuals, voice lines, caption, anything)",
 };
 const HELP = `📖 hashcovet reels — how to use
 
@@ -24,20 +24,24 @@ const HELP = `📖 hashcovet reels — how to use
 /new — one extra reel on the next free day (add a topic: /new lighting tips)
 /help — this guide
 
+Every step has two ways to change things: 🤖 tell the AI what to change, or ✍️ write it yourself (used exactly).
+
 🔘 BUTTONS UNDER A SCRIPT
 ✅ Approve script — make the voice + video
-✏️ Request change — tell the AI what to change in the script
+🤖 Change with AI — describe the change, the AI rewrites
+✍️ Edit it myself — you get the script as lines; edit and reply; your exact words are used
 
 🔘 BUTTONS UNDER A VIDEO
 ✅ Approve video — schedules it for 12:30 PM on its date
-📝 Edit caption — type the exact caption you want
-#️⃣ Edit hashtags — type the hashtags you want (max 5)
-🎬 Request change (AI) — describe any change (text, visuals, voice lines…)
+📝 Edit caption — type the exact caption
+#️⃣ Edit hashtags — type the exact hashtags (max 5)
+🤖 Change video with AI — describe any change (text, visuals, voice…)
+✍️ Edit script myself — edit the lines yourself; the video is re-made with exactly that
 
 🧠 It learns: every change you ask for or text you rewrite becomes a rule, so you won't need to ask again.
 ✍️ To edit: tap a button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved." };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));

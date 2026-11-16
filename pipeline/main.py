@@ -163,6 +163,40 @@ def act(action, jid, text):
         previews.notify(f"🎙️🎬 {nice_date(jid)}: script approved. Making Arjun's voice and the video… (a few minutes)")
         dispatch_produce(jid)
 
+    elif action in ("smanq", "vmanq"):
+        previews.manual_prompt(job, action[:-1])
+
+    elif action in ("sman", "vman"):
+        from manual import apply_text
+        from spec import validate
+        new, changed, probs = apply_text(job["spec"], text)
+        probs += validate(new, CFG["content"]["max_hashtags"]) if changed else []
+        if probs:
+            previews.notify("⚠️ I couldn't use that edit:\n• " + "\n• ".join(previews.esc(p) for p in probs[:8]) +
+                            "\nTap ✍️ again and resend.")
+            return
+        if not changed:
+            previews.notify("No changes found in your text — nothing to update.")
+            return
+        rule = ""
+        try:
+            from manual import to_text
+            rule = ai_tasks.learn_from_edit("reel script", to_text(job["spec"]), to_text(new))
+        except Exception as ex:
+            print("learn failed:", ex)
+        job["spec"] = new; job["version"] += 1
+        added = add_learning(rule, "manual_script_edit", jid)
+        log_event(job, "manual_edit", {"stage": action, "changed": changed, "rule": rule})
+        note = ("Your exact text was applied (" + ", ".join(changed[:6]) + "). " + (learned_note(rule) if added else "")).strip()
+        if action == "sman":
+            save_job(job); git_commit(f"manual script edit {jid}")
+            previews.script_preview(job, note=note)
+        else:
+            job["status"] = "producing"
+            save_job(job); git_commit(f"manual video edit {jid}")
+            previews.notify(f"🎬 {nice_date(jid)}: re-rendering with your exact text… {note}")
+            dispatch_produce(jid, note)
+
     elif action == "sch":
         spec, rule, _, prov = ai_tasks.revise(job["spec"], text, "script")
         job["spec"] = spec; job["version"] += 1

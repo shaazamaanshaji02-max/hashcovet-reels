@@ -16,7 +16,8 @@ Confirm they are logged in, then start. Keys are pasted by the owner into the se
 **Schedule (owner's rules):** 1 reel per day, posted at **12:30 PM IST**. A finished reel must be in Telegram for
 review **by 9 AM**. Approved before 12:30 → posts at 12:30; approved after 12:30 → posts immediately on approval.
 Reminders if today's reel isn't approved: 10:00, 11:30, 12:15, 15:00, 18:00 IST. Owner can work ahead with
-`/plan N` (up to 62 days); `/status` lists upcoming days; `/new [topic]` adds one reel on the next free date.
+`/plan N` (up to 62 days); `/status` lists upcoming days; `/new [topic]` adds one reel on the next free date;
+`/help` shows the owner guide (text in `worker/src/index.js` HELP). Bot menu commands set via @BotFather /setcommands.
 Clock = Cloudflare Worker cron triggers (exact) → dispatch `bot.yml` actions `daily` (06:00), `remind`, `publish`
 (12:30). GitHub's own scheduler is NOT used (it runs late). Job id = posting date `YYYY-MM-DD`.
 Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).

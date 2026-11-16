@@ -40,8 +40,12 @@ def _gemini(system, user, model):
         if m in tried:
             continue
         tried.append(m)
-        r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent",
-                          json=body, headers={"x-goog-api-key": key}, timeout=90)
+        try:
+            r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent",
+                              json=body, headers={"x-goog-api-key": key}, timeout=180)
+        except requests.exceptions.Timeout:
+            print("gemini model timed out:", m)
+            continue
         if r.status_code in (404, 429, 403):
             print("gemini model skipped:", m, r.status_code)
             continue

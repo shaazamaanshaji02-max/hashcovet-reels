@@ -80,10 +80,10 @@ def add_topic(t):
 
 
 # ---------------- git ----------------
-def git_commit(msg):
+def git_commit(msg, extra=()):
     if os.environ.get("NO_GIT"):
         return
-    subprocess.run(["git", "add", "jobs", "memory"], cwd=ROOT, check=False)
+    subprocess.run(["git", "add", "jobs", "memory", *extra], cwd=ROOT, check=False)
     r = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=ROOT)
     if r.returncode == 0:
         return

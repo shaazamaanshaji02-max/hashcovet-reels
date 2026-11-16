@@ -159,7 +159,7 @@ def act_linkgroup(text):
     json.dump(c, open(cp, "w"), indent=2, ensure_ascii=False)
     wp = ROOT / "worker" / "wrangler.toml"; w = open(wp).read()
     w = re.sub(r'GROUP_CHAT_ID = "[^"]*"', f'GROUP_CHAT_ID = "{gid}"', w); open(wp, "w").write(w)
-    git_commit(f"link Telegram group {gid}")
+    git_commit(f"link Telegram group {gid}", extra=("config.json", "worker/wrangler.toml"))
     if not os.environ.get("NO_GIT"):
         subprocess.run(["gh", "workflow", "run", "deploy-worker.yml"], check=False)
     previews.notify("✅ Group linked. From now on every script, video and reminder comes here. Send /help to see everything.")
@@ -176,7 +176,7 @@ def act_access(text):
     c["allowed_users"] = users; json.dump(c, open(cp, "w"), indent=2, ensure_ascii=False)
     wp = ROOT / "worker" / "wrangler.toml"; w = open(wp).read()
     w = re.sub(r'ALLOWED_USERS = "[^"]*"', f'ALLOWED_USERS = "{",".join(users)}"', w); open(wp, "w").write(w)
-    git_commit(f"access {op} {uid}")
+    git_commit(f"access {op} {uid}", extra=("config.json", "worker/wrangler.toml"))
     if not os.environ.get("NO_GIT"):
         subprocess.run(["gh", "workflow", "run", "deploy-worker.yml"], check=False)
     who = ", ".join(users.values()) or "nobody else"

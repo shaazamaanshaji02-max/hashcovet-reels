@@ -9,7 +9,7 @@ crons = ["*/15 * * * *"]  # one trigger (free plan limit); times are matched in 
 [vars]
 GITHUB_REPO = "shaazamaanshaji02-max/hashcovet-reels"
 APPROVER_CHAT_ID = "1133794417"
-GROUP_CHAT_ID = ""  # set automatically by /linkgroup
+GROUP_CHAT_ID = "-5373889890"  # set automatically by /linkgroup
 ALLOWED_USERS = ""  # comma-separated Telegram user ids, set by /allow and /remove
 # Secrets are set by .github/workflows/deploy-worker.yml from GitHub secrets:
 # TELEGRAM_BOT_TOKEN, GITHUB_TOKEN (from WORKER_GITHUB_TOKEN)

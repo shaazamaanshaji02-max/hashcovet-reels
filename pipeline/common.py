@@ -117,6 +117,13 @@ def tg(method, files=None, **data):
 
 
 def chat_id():
+    """Linked group (set by /linkgroup) wins; else the approver's private chat."""
+    try:
+        g = json.load(open(os.path.join(ROOT, "config.json"))).get("group_chat_id")
+        if g:
+            return str(g)
+    except Exception:
+        pass
     return os.environ.get("TELEGRAM_CHAT_ID", "0")
 
 

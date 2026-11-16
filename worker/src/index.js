@@ -96,7 +96,15 @@ export default {
       return new Response("forbidden", { status: 403 });
     const u = await req.json();
     const chat = String(u.callback_query?.message?.chat?.id ?? u.message?.chat?.id ?? "");
-    if (chat !== String(env.APPROVER_CHAT_ID)) return new Response("ignored");
+    const from = String(u.callback_query?.from?.id ?? u.message?.from?.id ?? "");
+    // Link a group: the approver adds the bot to a group and sends /linkgroup there.
+    if (u.message?.text?.startsWith("/linkgroup") && from === String(env.APPROVER_CHAT_ID) && chat.startsWith("-")) {
+      await dispatch(env, "linkgroup", "", chat);
+      await tg(env, "sendMessage", { chat_id: chat, text: "🔗 Linking this group… the bot restarts in ~2 minutes, then all reels come here. Everyone in this group can use the buttons." });
+      return new Response("ok");
+    }
+    const allowed = [String(env.APPROVER_CHAT_ID), String(env.GROUP_CHAT_ID || "")].filter(Boolean);
+    if (!allowed.includes(chat)) return new Response("ignored");
 
     try {
       if (u.callback_query) {

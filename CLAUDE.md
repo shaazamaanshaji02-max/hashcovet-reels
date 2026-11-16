@@ -109,5 +109,6 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-16: Group mode: approver sends /linkgroup in a group → `config.json group_chat_id` + `wrangler.toml GROUP_CHAT_ID` set, worker redeployed; all group members can use buttons; pipeline sends to the group.
 - 2026-11-16: WORKER_GITHUB_TOKEN added; crons collapsed to one 15-min trigger (free limit).
 - 2026-11-16: Built + pushed. Repo created, Actions write permission on. Secrets/Worker/webhook setup in progress.

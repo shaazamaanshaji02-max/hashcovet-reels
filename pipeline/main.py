@@ -22,9 +22,11 @@ import subprocess
 import sys
 import traceback
 
+import json
+
 import ai_tasks
 import previews
-from common import (CFG, add_learning, add_topic, all_jobs, git_commit, ist_now, ist_today, load_job, log_event,
+from common import (CFG, ROOT, add_learning, add_topic, all_jobs, git_commit, ist_now, ist_today, load_job, log_event,
                     next_free_date, nice_date, save_job, slot)
 
 
@@ -149,6 +151,20 @@ def act_status():
     previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
 
 
+def act_linkgroup(t):
+    gid = text.strip()
+    if not re.fullmatch(r"-\d+", gid):
+        return
+    cp = ROOT / "config.json"; c = json.load(open(cp)); c["group_chat_id"] = gid
+    json.dump(c, open(cp, "w"), indent=2, ensure_ascii=False)
+    wp = ROOT / "worker" / "wrangler.toml"; w = open(wp).read()
+    w = re.sub(r'GROUP_CHAT_ID = "[^"]*"', f'GROUP_CHAT_ID = "{gid}"', w); open(wp, "w").write(w)
+    git_commit(f"link Telegram group {gid}")
+    if not os.environ.get("NO_GIT"):
+        subprocess.run(["gh", "workflow", "run", "deploy-worker.yml"], check=False)
+    previews.notify("✅ Group linked. From now on every script, video and reminder comes here. Send /help to see everything.")
+
+
 # ---------------- buttons ----------------
 def act(action, jid, text):
     job = load_job(jid)
@@ -263,6 +279,7 @@ if __name__ == "__main__":
         elif a == "publish": act_publish()
         elif a == "plan": act_plan(t or j or 7)
         elif a == "status": act_status()
+        elif a == "linkgroup": act_linkgroup(t)
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

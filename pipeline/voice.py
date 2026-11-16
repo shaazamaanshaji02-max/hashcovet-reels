@@ -66,6 +66,21 @@ def split(converted, offs, work):
     return out
 
 
+def _timed(fn, seconds, *a):
+    """Run fn in a daemon thread; give up after `seconds` (free spaces sometimes queue forever)."""
+    import threading
+    box = {}
+    def run():
+        try: box["ok"] = fn(*a)
+        except Exception as ex: box["err"] = ex
+    t = threading.Thread(target=run, daemon=True); t.start(); t.join(seconds)
+    if t.is_alive():
+        raise RuntimeError(f"timed out after {seconds // 60} min")
+    if "err" in box:
+        raise box["err"]
+    return box["ok"]
+
+
 def _gradio(space, src, ref, token=None):
     from gradio_client import Client, handle_file
     c = Client(space, hf_token=token) if token else Client(space)
@@ -83,7 +98,7 @@ def _local_cpu(src, ref, work):
     outdir = work / "seedvc_out"; outdir.mkdir(exist_ok=True)
     subprocess.run(["python", "inference.py", "--source", str(src), "--target", str(ref), "--output", str(outdir),
                     "--diffusion-steps", "25", "--length-adjust", "1.0", "--inference-cfg-rate", "0.7",
-                    "--f0-condition", "False"], cwd=repo, check=True, timeout=60 * 50)
+                    "--f0-condition", "False"], cwd=repo, check=True, timeout=60 * 20)
     wavs = sorted(outdir.glob("*.wav"))
     if not wavs:
         raise RuntimeError("local seed-vc produced no output")
@@ -102,12 +117,12 @@ def make_voice(spec, work):
             if method == "hf_gpu":
                 if not os.environ.get("HF_TOKEN"):
                     raise RuntimeError("no HF_TOKEN")
-                conv = _gradio(CFG["voice"]["hf_gpu_space"], src, ref, os.environ["HF_TOKEN"])
+                conv = _timed(_gradio, 8 * 60, CFG["voice"]["hf_gpu_space"], src, ref, os.environ["HF_TOKEN"])
             elif method == "hf_cpu_spaces":
                 conv = None
                 for sp in CFG["voice"]["hf_cpu_spaces"]:
                     try:
-                        conv = _gradio(sp, src, ref); break
+                        conv = _timed(_gradio, 8 * 60, sp, src, ref); break
                     except Exception as ex:
                         errors.append(f"{sp}: {str(ex)[:120]}")
                 if conv is None:

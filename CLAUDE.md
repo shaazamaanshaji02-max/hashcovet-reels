@@ -43,7 +43,8 @@ Statuses: script_review → producing → video_review → approved → ready_to
    Every change → new preview. Only approved jobs move on. Approved = `status: approved` in `jobs/<id>/job.json`.
 6. **Learning**: every AI change and every direct caption/hashtag edit is distilled into a rule in
    `memory/learnings.json` (`pipeline/common.py:add_learning`), injected into every prompt via `prompts/system.md`.
-7. **Instagram publishing is NOT built yet** (owner wants it after the Telegram flow is proven). `main.py:publish()`
+7. **Publishing targets (owner): Instagram Reels + Facebook Reels + YouTube Shorts** — same approved video, caption, hashtags.
+   **Not built yet** (owner wants it after the Telegram flow is proven). `main.py:publish()`
    currently marks `ready_to_post` and notifies. To build: store the approved mp4 publicly (e.g. Cloudflare R2), use
    the Instagram Graph API Reels publishing with caption + hashtags, add `pipeline/publish.py`, call it from `publish()`.
 
@@ -109,6 +110,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-16: Voice step time limits (HF spaces 8 min each, local Seed-VC 20 min) — a hung free space had stalled produce 45+ min.
 - 2026-11-16: AI writer hardened: Gemini skips busy (5xx)/retired/quota models; Groq auto-picks a live model; whole chain retries once after 45s. Group linked (-5373889890).
 - 2026-11-16: Group mode: approver sends /linkgroup in a group → `config.json group_chat_id` + `wrangler.toml GROUP_CHAT_ID` set, worker redeployed; pipeline sends to the group.
 - 2026-11-16: Access lock: only owner (APPROVER_CHAT_ID) + `ALLOWED_USERS` (wrangler var, mirrored in `config.json allowed_users`) can use the bot; owner manages with /allow, /remove (reply to a person's message), /members.

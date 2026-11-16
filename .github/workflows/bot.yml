@@ -1,0 +1,38 @@
+name: bot
+# Light actions: write script daily, apply approver actions from Telegram (via the Cloudflare Worker).
+on:
+  schedule:
+    - cron: "17 3 * * *"   # 08:47 IST daily: write a new script and send for approval
+  workflow_dispatch:
+    inputs:
+      action: { description: "new|sok|sch|vok|vcap|vtag|vch", required: true, default: "new" }
+      job:    { description: "job id", required: false, default: "" }
+      text:   { description: "instruction / new caption / hashtags / topic hint", required: false, default: "" }
+permissions:
+  contents: write
+  actions: write
+concurrency: { group: bot-${{ github.event.inputs.job || 'new' }}, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install requests
+      - run: git config user.name "hashcovet-bot" && git config user.email "bot@users.noreply.github.com"
+      - name: act
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          ACTION: ${{ github.event.inputs.action || 'new' }}
+          JOB: ${{ github.event.inputs.job }}
+          TEXT: ${{ github.event.inputs.text }}
+        run: python pipeline/main.py "$ACTION" "$JOB" "$TEXT"

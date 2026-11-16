@@ -1,0 +1,5 @@
+build/
+.seedvc/
+__pycache__/
+*.pyc
+worker/node_modules/

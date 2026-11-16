@@ -1,0 +1,32 @@
+name: produce
+# Heavy: Arjun's voice (Kokoro -> Seed-VC) + video render, then Telegram preview.
+on:
+  workflow_dispatch:
+    inputs:
+      job:  { required: true }
+      note: { required: false, default: "" }
+permissions:
+  contents: write
+concurrency: { group: produce-${{ github.event.inputs.job }}, cancel-in-progress: true }
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+      - run: pip install -r requirements.txt && python -m playwright install --with-deps chromium
+      - run: git config user.name "hashcovet-bot" && git config user.email "bot@users.noreply.github.com"
+      - name: voice + video
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          JOB: ${{ github.event.inputs.job }}
+          NOTE: ${{ github.event.inputs.note }}
+        run: python pipeline/produce.py "$JOB" "$NOTE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "reel-${{ github.event.inputs.job }}", path: "build/*.mp4", retention-days: 30 }

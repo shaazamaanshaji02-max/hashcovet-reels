@@ -1,0 +1,8 @@
+name = "hashcovet-reels-bot"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+GITHUB_REPO = "YOUR_GITHUB_USER/hashcovet-reels"
+# Secrets (set with `npx wrangler secret put NAME`):
+# TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, APPROVER_CHAT_ID, GITHUB_TOKEN

@@ -45,6 +45,23 @@ logo = "#" on navy→crimson gradient circle + "covet" Poppins Bold + "Innovate 
 Reel rules from the owner: branded thumbnail (logo, social icons, web pill, arrow) for the **first 1 second only**;
 inside content only a small corner logo + "hashcovet.com" watermark; end card keeps full branding.
 
+## Accounts used (owner's login email for all: shaazamaanshaji02@gmail.com)
+| Service | Account | Used for | Secret(s) it provides |
+|---|---|---|---|
+| GitHub | `shaazamaanshaji02-max` (repo `shaazamaanshaji02-max/hashcovet-reels`, private) | code, daily schedule, voice + video rendering (Actions) | `GITHUB_TOKEN` for the Worker: fine-grained PAT → github.com/settings/personal-access-tokens, repo hashcovet-reels only, Actions: Read & write |
+| Google AI Studio | shaazamaanshaji02@gmail.com | script writing (Gemini, free) | `GEMINI_API_KEY` → aistudio.google.com/app/apikey (key "Gemini API Key", Default Gemini Project) |
+| Hugging Face | logged in with shaazamaanshaji02@gmail.com | Arjun voice conversion on free GPU (Seed-VC) | `HF_TOKEN` → huggingface.co/settings/tokens, type **Read** |
+| Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
+| Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram → GitHub) | `TELEGRAM_SECRET` (any long random string, also used in setWebhook); optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` (Workers AI backup writer) |
+| Groq / OpenRouter (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY`, `OPENROUTER_API_KEY` |
+
+Where each secret is stored:
+- **GitHub → repo Settings → Secrets and variables → Actions:** `GEMINI_API_KEY`, `HF_TOKEN`, `TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_CHAT_ID`, optional `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`.
+- **Cloudflare → Workers → hashcovet-reels-bot → Settings → Variables and Secrets:** `TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_SECRET`, `APPROVER_CHAT_ID`, `GITHUB_TOKEN` (secrets) and `GITHUB_REPO` = `shaazamaanshaji02-max/hashcovet-reels` (plain variable).
+If a key leaks or stops working: create a new one at the same page and overwrite the secret with the same name.
+
 ## Secrets (names only — values live in GitHub/Cloudflare, never in the repo)
 GitHub Actions: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `GEMINI_API_KEY` (+ optional `GROQ_API_KEY`,
 `OPENROUTER_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`).

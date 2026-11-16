@@ -1,6 +1,7 @@
 name = "hashcovet-reels-bot"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
+workers_dev = true
 
 [triggers]
 crons = ["30 0 * * *", "30 4 * * *", "0 6 * * *", "45 6 * * *", "0 7 * * *", "30 9 * * *", "30 12 * * *"]
@@ -10,4 +11,3 @@ GITHUB_REPO = "shaazamaanshaji02-max/hashcovet-reels"
 APPROVER_CHAT_ID = "1133794417"
 # Secrets are set by .github/workflows/deploy-worker.yml from GitHub secrets:
 # TELEGRAM_BOT_TOKEN, GITHUB_TOKEN (from WORKER_GITHUB_TOKEN)
-workers_dev = true

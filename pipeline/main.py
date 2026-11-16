@@ -151,7 +151,7 @@ def act_status():
     previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
 
 
-def act_linkgroup(t):
+def act_linkgroup(text):
     gid = text.strip()
     if not re.fullmatch(r"-\d+", gid):
         return

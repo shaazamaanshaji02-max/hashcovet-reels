@@ -1,18 +1,16 @@
 name: bot
-# Light actions: write script daily, apply approver actions from Telegram (via the Cloudflare Worker).
+# Light actions. Triggered only by the Cloudflare Worker (Telegram buttons/commands + exact-time cron).
 on:
-  schedule:
-    - cron: "17 3 * * *"   # 08:47 IST daily: write a new script and send for approval
   workflow_dispatch:
     inputs:
-      action: { description: "new|sok|sch|vok|vcap|vtag|vch", required: true, default: "new" }
+      action: { description: "daily|remind|publish|new|plan|status|sok|sch|vok|vcap|vtag|vch", required: true, default: "new" }
       job:    { description: "job id", required: false, default: "" }
       text:   { description: "instruction / new caption / hashtags / topic hint", required: false, default: "" }
 permissions:
   contents: write
   actions: write
 concurrency:
-  group: bot-${{ github.event.inputs.job || 'new' }}
+  group: bot-${{ github.event.inputs.job || github.event.inputs.action }}
   cancel-in-progress: false
 jobs:
   run:
@@ -34,7 +32,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          ACTION: ${{ github.event.inputs.action || 'new' }}
+          ACTION: ${{ github.event.inputs.action }}
           JOB: ${{ github.event.inputs.job }}
           TEXT: ${{ github.event.inputs.text }}
         run: python pipeline/main.py "$ACTION" "$JOB" "$TEXT"

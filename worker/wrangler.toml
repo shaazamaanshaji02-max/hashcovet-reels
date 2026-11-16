@@ -2,7 +2,10 @@ name = "hashcovet-reels-bot"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
 
+[triggers]
+crons = ["30 0 * * *", "30 4 * * *", "0 6 * * *", "45 6 * * *", "0 7 * * *", "30 9 * * *", "30 12 * * *"]
+
 [vars]
-GITHUB_REPO = "YOUR_GITHUB_USER/hashcovet-reels"
+GITHUB_REPO = "shaazamaanshaji02-max/hashcovet-reels"
 # Secrets (set with `npx wrangler secret put NAME`):
 # TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, APPROVER_CHAT_ID, GITHUB_TOKEN

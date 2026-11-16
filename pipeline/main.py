@@ -1,15 +1,20 @@
-"""Action router. Called by .github/workflows/bot.yml (from the daily schedule or the Telegram Worker).
+"""Action router. Called by .github/workflows/bot.yml (dispatched by the Cloudflare Worker: Telegram buttons,
+bot commands, and the Worker's exact-time cron triggers).
 
   python pipeline/main.py <action> [job_id] [text]
 
-actions:
-  new   [topic hint]   write a new script and send it for approval
-  sok   job            script approved -> start voice + video production
-  sch   job text       change the script via AI (learns a rule)
-  vok   job            video approved -> queued for publishing (Instagram later)
-  vcap  job text       approver replaced the caption directly (learns a rule)
-  vtag  job text       approver replaced the hashtags directly (learns a rule)
-  vch   job text       change the video via AI (learns a rule; re-renders if needed)
+One reel per day. Job id = its posting date (YYYY-MM-DD, IST). Posting slot: 12:30 PM IST.
+
+scheduled (Worker cron, IST):
+  daily    06:00  make sure today's reel exists: write script if missing, then produce the video (review by 9 AM)
+  remind   10:00 11:30 12:15 15:00 18:00  remind if today's reel isn't approved
+  publish  12:30  publish today's approved reel (and any overdue approved reels)
+commands:
+  new   [topic]   script for the next free date (sent for script approval)
+  plan  N         write scripts for the next N free dates; videos are then produced one after another
+  status          list upcoming dates and their state
+buttons:
+  sok sch vok vcap vtag vch   (see previews.py)
 """
 import os
 import re
@@ -19,7 +24,8 @@ import traceback
 
 import ai_tasks
 import previews
-from common import CFG, add_learning, add_topic, git_commit, load_job, log_event, save_job, today_id
+from common import (CFG, add_learning, add_topic, all_jobs, git_commit, ist_now, ist_today, load_job, log_event,
+                    next_free_date, nice_date, save_job, slot)
 
 
 def dispatch_produce(jid, note=""):
@@ -33,28 +39,128 @@ def learned_note(rule):
     return f"Learned for next time: “{rule}”" if rule else ""
 
 
-def act_new(hint):
+def new_job(date, hint=None, batch=False):
     spec, prov = ai_tasks.write_new(hint or None)
-    jid = today_id()
-    job = {"id": jid, "status": "script_review", "version": 1, "spec": spec, "provider": prov}
+    job = {"id": date, "date": date, "status": "script_review", "version": 1, "spec": spec, "provider": prov,
+           "batch": batch}
     log_event(job, "script_written", prov)
     add_topic(spec["topic"])
     save_job(job)
-    git_commit(f"script {jid}")
-    previews.script_preview(job, note=f"written by {prov}")
+    return job
 
 
+def publish(job, reason=""):
+    """Instagram is not connected yet: mark ready and tell the approver. Replace with real posting later."""
+    if job["status"] in ("published", "ready_to_post"):
+        return
+    if os.environ.get("IG_ACCESS_TOKEN"):
+        raise NotImplementedError("Instagram publishing not built yet")  # TODO: pipeline/publish.py
+    job["status"] = "ready_to_post"
+    log_event(job, "publish_slot", reason)
+    save_job(job)
+    previews.notify(f"📤 <b>{nice_date(job['date'])}</b> reel is approved and its posting time has come.\n"
+                    f"Instagram isn't connected yet — the video above is ready to post manually. {reason}")
+
+
+# ---------------- scheduled ----------------
+def act_daily():
+    today = ist_today()
+    try:
+        job = load_job(today)
+    except FileNotFoundError:
+        job = None
+    if job is None:
+        job = new_job(today)
+        git_commit(f"script {today}")
+    if job["status"] == "script_review":
+        job["status"] = "producing"
+        log_event(job, "auto_produce", "daily 06:00")
+        save_job(job); git_commit(f"auto produce {today}")
+        previews.notify(f"🌅 Making today's reel (<b>{nice_date(today)}</b>, posts 12:30 PM). Preview in a few minutes.")
+        dispatch_produce(today, "Today's reel — approve before 12:30 PM to post on time.")
+
+
+def act_remind():
+    today = ist_today()
+    try:
+        job = load_job(today)
+    except FileNotFoundError:
+        previews.notify("⏰ No reel exists for today yet. Send /new to make one now.")
+        return
+    if job["status"] in ("approved", "ready_to_post", "published"):
+        return
+    late = ist_now() >= slot(today)
+    when = "it will post as soon as you approve" if late else "approve before 12:30 PM to post on time"
+    previews.notify(f"⏰ Reminder: today's reel (<b>{nice_date(today)}</b>) is waiting for your approval "
+                    f"(status: {job['status'].replace('_', ' ')}) — {when}.")
+    if job["status"] == "video_review":
+        previews.video_preview(job, note="Reminder")
+    elif job["status"] == "script_review":
+        previews.script_preview(job, note="Reminder")
+
+
+def act_publish():
+    for job in all_jobs():
+        if job["status"] == "approved" and ist_now() >= slot(job["date"]):
+            publish(job, "Scheduled 12:30 PM slot.")
+    git_commit("publish slot")
+
+
+# ---------------- commands ----------------
+def act_new(hint):
+    date = next_free_date()
+    job = new_job(date, hint)
+    git_commit(f"script {date}")
+    previews.script_preview(job, note=f"for {nice_date(date)} · written by {job['provider']}")
+
+
+def act_plan(n):
+    n = max(1, min(int(n or 7), 62))
+    made = []
+    start = None
+    for _ in range(n):
+        date = next_free_date(start)
+        try:
+            new_job(date, batch=True)
+            made.append(date)
+        except Exception as ex:
+            previews.notify(f"⚠️ Stopped planning at {nice_date(date)}: {str(ex)[:300]}")
+            break
+        start = date
+    git_commit(f"plan {len(made)} scripts")
+    if made:
+        previews.notify(f"🗓 Wrote scripts for <b>{len(made)}</b> days ({nice_date(made[0])} → {nice_date(made[-1])}). "
+                        f"Videos are being made one after another; each preview will arrive here. "
+                        f"Approve whenever you're free — each posts on its own date at 12:30 PM.")
+        first = load_job(made[0]); first["status"] = "producing"; save_job(first); git_commit("produce batch")
+        dispatch_produce(made[0])
+
+
+def act_status():
+    today = ist_today()
+    rows = [j for j in all_jobs() if j["date"] >= today][:40]
+    if not rows:
+        previews.notify("No upcoming reels. Send /new or /plan 30.")
+        return
+    icon = {"script_review": "📝", "producing": "⚙️", "video_review": "👀", "approved": "✅",
+            "ready_to_post": "📤", "published": "🟢"}
+    lines = [f"{icon.get(j['status'], '•')} {nice_date(j['date'])} — {j['status'].replace('_', ' ')} — "
+             f"{j['spec']['topic'][:40]}" for j in rows]
+    previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
+
+
+# ---------------- buttons ----------------
 def act(action, jid, text):
     job = load_job(jid)
-    if job["status"] in ("approved", "published") and action not in ("vok",):
-        previews.notify(f"⚠️ <code>{jid}</code> is already {job['status']}; no changes made.")
+    if job["status"] in ("ready_to_post", "published") or (job["status"] == "approved" and action != "vok"):
+        previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
         return
 
     if action == "sok":
         job["status"] = "producing"
         log_event(job, "script_approved", "")
         save_job(job); git_commit(f"script approved {jid}")
-        previews.notify(f"🎙️🎬 <code>{jid}</code>: script approved. Generating Arjun's voice and the video on GitHub… (a few minutes)")
+        previews.notify(f"🎙️🎬 {nice_date(jid)}: script approved. Making Arjun's voice and the video… (a few minutes)")
         dispatch_produce(jid)
 
     elif action == "sch":
@@ -68,19 +174,21 @@ def act(action, jid, text):
     elif action == "vok":
         job["status"] = "approved"
         log_event(job, "video_approved", "")
-        save_job(job); git_commit(f"approved {jid}")
-        previews.notify(f"✅ <code>{jid}</code> approved. It will be published automatically once Instagram is connected.")
+        save_job(job)
+        if ist_now() >= slot(job["date"]):
+            publish(job, "Approved after the 12:30 PM slot — posting now.")
+        else:
+            previews.notify(f"✅ {nice_date(job['date'])} approved. It will post at 12:30 PM on {nice_date(job['date'])}.")
+        git_commit(f"approved {jid}")
 
     elif action in ("vcap", "vtag"):
         field = "caption" if action == "vcap" else "hashtags"
         before = job["spec"][field]
         if field == "caption":
-            new = text.strip()
-            before_s, after_s = before, new
+            new = text.strip(); before_s, after_s = before, new
         else:
             tags = [t if t.startswith("#") else "#" + t for t in re.split(r"[\s,]+", text.strip()) if t]
-            new = tags[:CFG["content"]["max_hashtags"]]
-            before_s, after_s = " ".join(before), " ".join(new)
+            new = tags[:CFG["content"]["max_hashtags"]]; before_s, after_s = " ".join(before), " ".join(new)
         job["spec"][field] = new; job["version"] += 1
         rule = ""
         try:
@@ -101,7 +209,7 @@ def act(action, jid, text):
         if needs_render:
             job["status"] = "producing"
             save_job(job); git_commit(f"video change {jid}")
-            previews.notify(f"🎬 <code>{jid}</code>: re-rendering with your change… {note}")
+            previews.notify(f"🎬 {nice_date(jid)}: re-rendering with your change… {note}")
             dispatch_produce(jid, note)
         else:
             save_job(job); git_commit(f"video change {jid}")
@@ -115,10 +223,13 @@ if __name__ == "__main__":
     j = sys.argv[2] if len(sys.argv) > 2 else ""
     t = sys.argv[3] if len(sys.argv) > 3 else ""
     try:
-        if a == "new":
-            act_new(t or j)
-        else:
-            act(a, j, t)
+        if a == "new": act_new(t or j)
+        elif a == "daily": act_daily()
+        elif a == "remind": act_remind()
+        elif a == "publish": act_publish()
+        elif a == "plan": act_plan(t or j or 7)
+        elif a == "status": act_status()
+        else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()
         previews.notify(f"❌ <b>{a}</b> failed for <code>{j}</code>:\n<code>{str(ex)[:600]}</code>")

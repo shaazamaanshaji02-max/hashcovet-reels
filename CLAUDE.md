@@ -13,8 +13,18 @@ browser first (all use shaazamaanshaji02@gmail.com — see "Accounts used" below
 Confirm they are logged in, then start. Keys are pasted by the owner into the secret fields, never into chat.
 
 ## What the system does (end to end)
-1. Daily at 08:47 IST, GitHub Actions `bot.yml` (action `new`) asks a free AI to write a "3 mistakes" reel script
-   (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback chain: Gemini → Groq → OpenRouter → Cloudflare Workers AI).
+**Schedule (owner's rules):** 1 reel per day, posted at **12:30 PM IST**. A finished reel must be in Telegram for
+review **by 9 AM**. Approved before 12:30 → posts at 12:30; approved after 12:30 → posts immediately on approval.
+Reminders if today's reel isn't approved: 10:00, 11:30, 12:15, 15:00, 18:00 IST. Owner can work ahead with
+`/plan N` (up to 62 days); `/status` lists upcoming days; `/new [topic]` adds one reel on the next free date.
+Clock = Cloudflare Worker cron triggers (exact) → dispatch `bot.yml` actions `daily` (06:00), `remind`, `publish`
+(12:30). GitHub's own scheduler is NOT used (it runs late). Job id = posting date `YYYY-MM-DD`.
+Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).
+
+1. 06:00 IST `daily`: if today has no job, a free AI writes a "3 mistakes" script
+   (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → OpenRouter →
+   Cloudflare Workers AI) and the video is produced automatically (no script approval step for the daily reel).
+   `/plan N` writes N scripts, then `produce.py` chains the videos one after another.
 2. The script goes to the approver's Telegram with buttons (`pipeline/previews.py`).
 3. Buttons/replies → Cloudflare Worker (`worker/src/index.js`) → GitHub `workflow_dispatch` of `bot.yml` with
    `action/job/text`. The Worker is stateless: edit prompts are force-reply messages tagged `#job:<id> #act:<act>`.
@@ -29,9 +39,9 @@ Confirm they are logged in, then start. Keys are pasted by the owner into the se
    Every change → new preview. Only approved jobs move on. Approved = `status: approved` in `jobs/<id>/job.json`.
 6. **Learning**: every AI change and every direct caption/hashtag edit is distilled into a rule in
    `memory/learnings.json` (`pipeline/common.py:add_learning`), injected into every prompt via `prompts/system.md`.
-7. **Instagram publishing is NOT built yet** (owner wants it after the Telegram flow is proven). Plan: on `vok`,
-   upload mp4 to public storage (e.g. Cloudflare R2) and use the Instagram Graph API content publishing (Reels) with
-   caption + hashtags; add `pipeline/publish.py` and call it from `main.py` action `vok`.
+7. **Instagram publishing is NOT built yet** (owner wants it after the Telegram flow is proven). `main.py:publish()`
+   currently marks `ready_to_post` and notifies. To build: store the approved mp4 publicly (e.g. Cloudflare R2), use
+   the Instagram Graph API Reels publishing with caption + hashtags, add `pipeline/publish.py`, call it from `publish()`.
 
 ## Where things live
 | What | Where |
@@ -40,7 +50,7 @@ Confirm they are logged in, then start. Keys are pasted by the owner into the se
 | Writer rules / tone | `prompts/system.md` |
 | Reel format + validation + char limits + allowed icons | `pipeline/spec.py` (+ icon SVGs in `templates/reel.html`) |
 | Design (Hashcovet look) | `templates/reel.html`, fonts in `assets/fonts/` |
-| Actions router | `pipeline/main.py` (`new sok sch vok vcap vtag vch`) |
+| Actions router | `pipeline/main.py` (`daily remind publish new plan status` + buttons `sok sch vok vcap vtag vch`) |
 | Per-reel history (every version/edit) | `jobs/<id>/job.json` |
 | Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
@@ -91,4 +101,6 @@ Never ask the owner to paste secrets into chat; have them paste into the GitHub/
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
+- 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
 - 2026-11-16: Built + pushed. Repo created, Actions write permission on. Secrets/Worker/webhook setup in progress.

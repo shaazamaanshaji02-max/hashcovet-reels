@@ -130,3 +130,45 @@ def send_text(text, buttons=None):
     if buttons:
         data["reply_markup"] = buttons
     return tg("sendMessage", **data)
+
+
+# ---------------- dates (IST) ----------------
+IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+PUBLISH_HM = (12, 30)
+
+
+def ist_now():
+    return datetime.datetime.now(IST)
+
+
+def ist_today():
+    return ist_now().date().isoformat()
+
+
+def slot(date_str):
+    d = datetime.date.fromisoformat(date_str)
+    return datetime.datetime(d.year, d.month, d.day, *PUBLISH_HM, tzinfo=IST)
+
+
+def all_jobs():
+    out = []
+    for p in sorted((ROOT / "jobs").glob("*/job.json")):
+        try:
+            j = json.loads(p.read_text())
+            if j.get("date"):
+                out.append(j)
+        except Exception:
+            pass
+    return out
+
+
+def next_free_date(start=None):
+    used = {j["date"] for j in all_jobs()}
+    d = datetime.date.fromisoformat(start or ist_today())
+    while d.isoformat() in used:
+        d += datetime.timedelta(days=1)
+    return d.isoformat()
+
+
+def nice_date(date_str):
+    return datetime.date.fromisoformat(date_str).strftime("%a %d %b")

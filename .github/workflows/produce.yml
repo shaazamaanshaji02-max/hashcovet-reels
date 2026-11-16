@@ -7,6 +7,7 @@ on:
       note: { required: false, default: "" }
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: produce-${{ github.event.inputs.job }}
   cancel-in-progress: true
@@ -23,6 +24,7 @@ jobs:
       - run: git config user.name "hashcovet-bot" && git config user.email "bot@users.noreply.github.com"
       - name: voice + video
         env:
+          GH_TOKEN: ${{ github.token }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

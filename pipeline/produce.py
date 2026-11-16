@@ -7,7 +7,7 @@ import sys
 import traceback
 
 import previews
-from common import ROOT, git_commit, load_job, log_event, save_job
+from common import ROOT, all_jobs, git_commit, load_job, log_event, save_job
 from render import render
 from voice import make_voice
 
@@ -26,6 +26,13 @@ def main(jid, note=""):
     save_job(job)
     git_commit(f"video {jid} v{job['version']}")
     print(out)
+    # advance planning: make the next planned (batch) script's video
+    nxt = [j for j in all_jobs() if j.get("batch") and j["status"] == "script_review"]
+    if nxt:
+        n = sorted(nxt, key=lambda j: j["date"])[0]
+        n["status"] = "producing"; save_job(n); git_commit(f"produce batch {n['id']}")
+        from main import dispatch_produce
+        dispatch_produce(n["id"])
 
 
 if __name__ == "__main__":

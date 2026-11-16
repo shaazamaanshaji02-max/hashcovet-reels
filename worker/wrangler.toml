@@ -4,7 +4,7 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 
 [triggers]
-crons = ["30 0 * * *", "30 4 * * *", "0 6 * * *", "45 6 * * *", "0 7 * * *", "30 9 * * *", "30 12 * * *"]
+crons = ["*/15 * * * *"]  # one trigger (free plan limit); times are matched in src/index.js CRON_ACTION
 
 [vars]
 GITHUB_REPO = "shaazamaanshaji02-max/hashcovet-reels"

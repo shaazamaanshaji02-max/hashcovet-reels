@@ -18,7 +18,7 @@ review **by 9 AM**. Approved before 12:30 → posts at 12:30; approved after 12:
 Reminders if today's reel isn't approved: 10:00, 11:30, 12:15, 15:00, 18:00 IST. Owner can work ahead with
 `/plan N` (up to 62 days); `/status` lists upcoming days; `/new [topic]` adds one reel on the next free date;
 `/help` shows the owner guide (text in `worker/src/index.js` HELP). Bot menu commands set via @BotFather /setcommands.
-Clock = Cloudflare Worker cron triggers (exact) → dispatch `bot.yml` actions `daily` (06:00), `remind`, `publish`
+Clock = ONE Cloudflare cron `*/15 * * * *` (free plan max 5 per account); `scheduled()` matches the UTC time to `CRON_ACTION` (exact) → dispatch `bot.yml` actions `daily` (06:00), `remind`, `publish`
 (12:30). GitHub's own scheduler is NOT used (it runs late). Job id = posting date `YYYY-MM-DD`.
 Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).
 
@@ -109,4 +109,5 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-16: WORKER_GITHUB_TOKEN added; crons collapsed to one 15-min trigger (free limit).
 - 2026-11-16: Built + pushed. Repo created, Actions write permission on. Secrets/Worker/webhook setup in progress.

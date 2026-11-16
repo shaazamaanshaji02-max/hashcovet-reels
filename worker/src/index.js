@@ -77,7 +77,10 @@ const CRON_ACTION = {
 
 export default {
   async scheduled(event, env, ctx) {
-    const action = CRON_ACTION[event.cron];
+    // Free plan allows few cron triggers, so one "*/15 * * * *" trigger runs and we match the UTC time here.
+    const d = new Date(event.scheduledTime);
+    const key = `${d.getUTCMinutes()} ${d.getUTCHours()} * * *`;
+    const action = CRON_ACTION[key];
     if (action) ctx.waitUntil(dispatch(env, action));
   },
 

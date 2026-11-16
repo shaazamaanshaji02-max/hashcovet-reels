@@ -31,5 +31,5 @@ jobs:
       - name: register Telegram webhook
         working-directory: worker
         run: |
-          sleep 5
-          curl -s "$(cat url.txt)/setup"
+          for i in 1 2 3 4 5 6; do sleep 10; curl -sf "$(cat url.txt)/setup" && exit 0; done
+          echo "Webhook not confirmed yet - open <worker-url>/setup in a browser once."

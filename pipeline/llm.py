@@ -131,7 +131,10 @@ def _openai_compat(url, key_env, system, user, model, json_mode=True):
     r = requests.post(url, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=120)
     if not r.ok:
         raise RuntimeError(f"HTTP {r.status_code} {r.text[:200]}")
-    return r.json()["choices"][0]["message"]["content"]
+    try:
+        return r.json()["choices"][0]["message"]["content"]
+    except Exception:
+        raise RuntimeError(f"HTTP {r.status_code} bad reply: {r.text[:160]!r}")
 
 
 def _cloudflare(system, user, model):

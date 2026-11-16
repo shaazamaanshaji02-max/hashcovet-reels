@@ -163,6 +163,7 @@ def act_aitest():
             msg = llm._clean(str(ex))
             why = "no key added yet" if msg.startswith("no ") else msg[:90]
             rows.append(f"❌ {prov} — {previews.esc(why)}")
+    print("\n".join(rows))
     previews.notify("<b>AI writers check</b> (tried in this order)\n" + "\n".join(rows))
 
 

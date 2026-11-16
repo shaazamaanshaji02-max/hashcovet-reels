@@ -114,7 +114,7 @@ def _compat(provider, system, user, model):
             last = "timeout"; print(f"{provider} model timed out:", m); continue
         except RuntimeError as ex:
             last = str(ex)
-            if re.search(r"HTTP (40[0-4]|408|413|422|429|5\d\d)", last):
+            if re.search(r"HTTP (40[0-4]|402|408|413|422|429|5\d\d)", last):
                 print(f"{provider} model skipped:", m, last[:70]); continue
             raise
     raise RuntimeError(f"{provider}: no working model (tried {tried}): {_clean(last)[:120]}")

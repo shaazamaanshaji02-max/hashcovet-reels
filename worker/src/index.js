@@ -1,6 +1,7 @@
 // Cloudflare Worker: Telegram webhook -> GitHub workflow_dispatch.
-// Secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET (webhook secret), APPROVER_CHAT_ID, GITHUB_TOKEN (fine-grained PAT,
-// Actions: read & write on the repo), GITHUB_REPO ("owner/repo").
+// Secrets: TELEGRAM_BOT_TOKEN, GITHUB_TOKEN (fine-grained PAT, Actions read & write on the repo).
+// Vars (wrangler.toml): APPROVER_CHAT_ID, GITHUB_REPO. Webhook secret is derived from the bot token (no extra secret).
+// GET /setup registers the Telegram webhook to this Worker (called by .github/workflows/deploy-worker.yml).
 // Stateless: edit prompts are sent as force-reply messages tagged with #job and #act; the reply carries them back.
 
 const PROMPTS = {
@@ -38,6 +39,11 @@ const HELP = `📖 hashcovet reels — how to use
 
 const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved." };
 
+async function hookSecret(env) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));
+  return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 48);
+}
+
 async function tg(env, method, body) {
   const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -72,8 +78,14 @@ export default {
   },
 
   async fetch(req, env) {
-    if (req.method !== "POST") return new Response("ok");
-    if (req.headers.get("x-telegram-bot-api-secret-token") !== env.TELEGRAM_SECRET)
+    const url = new URL(req.url);
+    if (req.method === "GET" && url.pathname === "/setup") {
+      const r = await tg(env, "setWebhook", { url: `${url.origin}/hook`, secret_token: await hookSecret(env),
+        allowed_updates: ["message", "callback_query"], drop_pending_updates: true });
+      return new Response(JSON.stringify({ webhook: r.ok, description: r.description }));
+    }
+    if (req.method !== "POST") return new Response("hashcovet reels bot is running");
+    if (req.headers.get("x-telegram-bot-api-secret-token") !== await hookSecret(env))
       return new Response("forbidden", { status: 403 });
     const u = await req.json();
     const chat = String(u.callback_query?.message?.chat?.id ?? u.message?.chat?.id ?? "");

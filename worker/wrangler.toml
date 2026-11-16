@@ -7,5 +7,7 @@ crons = ["30 0 * * *", "30 4 * * *", "0 6 * * *", "45 6 * * *", "0 7 * * *", "30
 
 [vars]
 GITHUB_REPO = "shaazamaanshaji02-max/hashcovet-reels"
-# Secrets (set with `npx wrangler secret put NAME`):
-# TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, APPROVER_CHAT_ID, GITHUB_TOKEN
+APPROVER_CHAT_ID = "1133794417"
+# Secrets are set by .github/workflows/deploy-worker.yml from GitHub secrets:
+# TELEGRAM_BOT_TOKEN, GITHUB_TOKEN (from WORKER_GITHUB_TOKEN)
+workers_dev = true

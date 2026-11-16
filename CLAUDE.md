@@ -71,28 +71,30 @@ inside content only a small corner logo + "hashcovet.com" watermark; end card ke
 | Google AI Studio | shaazamaanshaji02@gmail.com | script writing (Gemini, free) | `GEMINI_API_KEY` → aistudio.google.com/app/apikey (key "Gemini API Key", Default Gemini Project) |
 | Hugging Face | logged in with shaazamaanshaji02@gmail.com | Arjun voice conversion on free GPU (Seed-VC) | `HF_TOKEN` → huggingface.co/settings/tokens, type **Read** |
 | Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
-| Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram → GitHub) | `TELEGRAM_SECRET` (any long random string, also used in setWebhook); optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` (Workers AI backup writer) |
+| Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram bridge + exact-time crons) | `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers") + `CLOUDFLARE_ACCOUNT_ID`, stored in GitHub; the Worker is deployed by `.github/workflows/deploy-worker.yml`. Optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` for Workers AI backup writer |
 | Groq / OpenRouter (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY`, `OPENROUTER_API_KEY` |
 
 Where each secret is stored:
 - **GitHub → repo Settings → Secrets and variables → Actions:** `GEMINI_API_KEY`, `HF_TOKEN`, `TELEGRAM_BOT_TOKEN`,
   `TELEGRAM_CHAT_ID`, optional `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`.
-- **Cloudflare → Workers → hashcovet-reels-bot → Settings → Variables and Secrets:** `TELEGRAM_BOT_TOKEN`,
-  `TELEGRAM_SECRET`, `APPROVER_CHAT_ID`, `GITHUB_TOKEN` (secrets) and `GITHUB_REPO` = `shaazamaanshaji02-max/hashcovet-reels` (plain variable).
+- **Also in GitHub secrets, for the Worker deploy:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `WORKER_GITHUB_TOKEN`
+  (fine-grained PAT: repo hashcovet-reels only, Actions read & write). `deploy-worker.yml` copies `TELEGRAM_BOT_TOKEN` and
+  `WORKER_GITHUB_TOKEN` into the Worker's secrets and calls `<worker>/setup` to register the Telegram webhook (webhook
+  secret is derived from the bot token). Vars `GITHUB_REPO`, `APPROVER_CHAT_ID` live in `worker/wrangler.toml`.
+  To redeploy/fix the bot bridge: Actions → deploy-worker → Run workflow.
 If a key leaks or stops working: create a new one at the same page and overwrite the secret with the same name.
 
 ## Secrets (names only — values live in GitHub/Cloudflare, never in the repo)
 GitHub Actions: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `GEMINI_API_KEY` (+ optional `GROQ_API_KEY`,
 `OPENROUTER_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`).
-Cloudflare Worker: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_SECRET`, `APPROVER_CHAT_ID`, `GITHUB_TOKEN` (fine-grained PAT,
-this repo, Actions read/write); var `GITHUB_REPO`.
+Worker deploy (also GitHub secrets): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `WORKER_GITHUB_TOKEN`.
 Never ask the owner to paste secrets into chat; have them paste into the GitHub/Cloudflare secret fields.
 
 ## Common fixes
 - Bot says "All AI providers failed": a model name was retired → update `config.json` `llm_models`, or add a key.
 - Voice says "clone unavailable": HF quota used up or space changed → check `Plachta/Seed-VC` API (`/predict`
   params in `voice.py:_gradio`), or add another CPU space to `config.json`.
-- Buttons do nothing: Worker secrets / webhook. Re-run setWebhook (see README) and check Worker logs.
+- Buttons do nothing: Actions → deploy-worker → Run workflow (redeploys + re-registers webhook); check Worker logs in Cloudflare.
 - Scheduled run stopped: GitHub pauses schedules after 60 days without repo activity; re-enable in Actions tab.
 - Text overflow in video: adjust limits in `spec.py` or `fit()` calls in `templates/reel.html`.
 

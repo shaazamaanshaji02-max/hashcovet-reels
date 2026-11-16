@@ -163,6 +163,12 @@ def act_aitest():
             msg = llm._clean(str(ex))
             why = "no key added yet" if msg.startswith("no ") else msg[:90]
             rows.append(f"❌ {prov} — {previews.esc(why)}")
+    try:
+        from research import search_phrases
+        ph = search_phrases("app development")
+        rows.append(f"🔎 search research — {'working' if ph else 'no results'} ({len(ph)} phrases, e.g. {previews.esc(', '.join(ph[:3]))})")
+    except Exception as ex:
+        rows.append(f"🔎 search research — failed: {previews.esc(str(ex)[:80])}")
     print("\n".join(rows))
     previews.notify("<b>AI writers check</b> (tried in this order)\n" + "\n".join(rows))
 

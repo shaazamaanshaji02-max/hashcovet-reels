@@ -8,6 +8,17 @@ def caption_block(spec):
     return f"{spec['caption']}\n\n{' '.join(spec['hashtags'])}"
 
 
+def research_line(s):
+    r = s.get("research") or {}
+    if not r:
+        return ""
+    bits = []
+    if r.get("niche"): bits.append(f"niche: {esc(r['niche'])}")
+    if r.get("hook_formula"): bits.append(f"hook style: {esc(r['hook_formula'])}")
+    if r.get("search_phrases"): bits.append("people search: " + esc(", ".join(r["search_phrases"][:4])))
+    return "🔎 <i>Researched — " + " · ".join(bits) + "</i>\n" if bits else ""
+
+
 def script_preview(job, note=""):
     s = job["spec"]
     tips = "\n".join(
@@ -16,7 +27,8 @@ def script_preview(job, note=""):
         for i, t in enumerate(s["tips"], 1))
     text = (f"📝 <b>SCRIPT for approval</b> · <code>{job['id']}</code> (v{job['version']})\n"
             f"{('ℹ️ ' + esc(note) + chr(10)) if note else ''}"
-            f"<b>Topic:</b> {esc(s['topic'])}\n\n"
+            f"<b>Topic:</b> {esc(s['topic'])}\n"
+            f"{research_line(s)}\n"
             f"<b>Hook:</b> {esc(s['hook']['line'])} <i>{esc(s['hook']['script'])}</i>\n"
             f"🎙 {esc(s['vo']['hook'])}\n\n{tips}\n\n"
             f"<b>Save:</b> 🎙 {esc(s['vo']['save'])}\n<b>CTA:</b> 🎙 {esc(s['vo']['cta'])}\n\n"

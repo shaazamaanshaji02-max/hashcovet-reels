@@ -109,6 +109,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-16: AI writer hardened: Gemini skips busy (5xx)/retired/quota models; Groq auto-picks a live model; whole chain retries once after 45s. Group linked (-5373889890).
 - 2026-11-16: Group mode: approver sends /linkgroup in a group → `config.json group_chat_id` + `wrangler.toml GROUP_CHAT_ID` set, worker redeployed; pipeline sends to the group.
 - 2026-11-16: Access lock: only owner (APPROVER_CHAT_ID) + `ALLOWED_USERS` (wrangler var, mirrored in `config.json allowed_users`) can use the bot; owner manages with /allow, /remove (reply to a person's message), /members.
 - 2026-11-16: WORKER_GITHUB_TOKEN added; crons collapsed to one 15-min trigger (free limit).

@@ -26,6 +26,12 @@ const HELP = `📖 hashcovet reels — how to use
 
 Every step has two ways to change things: 🤖 tell the AI what to change, or ✍️ write it yourself (used exactly).
 
+🔒 ACCESS (owner only)
+/allow — reply to someone's message with /allow to give them access
+/remove — reply to someone's message with /remove to take it away
+/members — see who has access
+Anyone else in the group cannot press buttons or use commands.
+
 🔘 BUTTONS UNDER A SCRIPT
 ✅ Approve script — make the voice + video
 🤖 Change with AI — describe the change, the AI rewrites
@@ -105,6 +111,32 @@ export default {
     }
     const allowed = [String(env.APPROVER_CHAT_ID), String(env.GROUP_CHAT_ID || "")].filter(Boolean);
     if (!allowed.includes(chat)) return new Response("ignored");
+    // Only the owner + people the owner allowed may use the bot (even inside the group).
+    const owner = from === String(env.APPROVER_CHAT_ID);
+    const members = String(env.ALLOWED_USERS || "").split(",").map(x => x.trim()).filter(Boolean);
+    if (!owner && !members.includes(from)) {
+      if (u.callback_query) await tg(env, "answerCallbackQuery", { callback_query_id: u.callback_query.id,
+        text: "🔒 You don't have access to this bot. Ask the owner.", show_alert: true });
+      return new Response("not allowed");
+    }
+    const txt = u.message?.text || "";
+    if (/^\/(allow|remove|members)/.test(txt)) {
+      if (!owner) { await tg(env, "sendMessage", { chat_id: chat, text: "🔒 Only the owner can change who has access." }); return new Response("ok"); }
+      if (txt.startsWith("/members")) {
+        await tg(env, "sendMessage", { chat_id: chat, text: `👥 People with access: owner${members.length ? " + " + members.length + " allowed (ids: " + members.join(", ") + ")" : " only"}.` });
+        return new Response("ok");
+      }
+      const target = u.message.reply_to_message?.from;
+      if (!target || target.is_bot) {
+        await tg(env, "sendMessage", { chat_id: chat, text: "↩️ Reply to a message from that person with /allow or /remove." });
+        return new Response("ok");
+      }
+      const name = [target.first_name, target.last_name].filter(Boolean).join(" ").replace(/[:,]/g, " ");
+      const add = txt.startsWith("/allow");
+      await dispatch(env, "access", "", `${add ? "add" : "del"}:${target.id}:${name}`);
+      await tg(env, "sendMessage", { chat_id: chat, text: `${add ? "✅ Giving access to" : "🚫 Removing access for"} ${name}… takes ~2 minutes.` });
+      return new Response("ok");
+    }
 
     try {
       if (u.callback_query) {

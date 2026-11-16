@@ -165,6 +165,25 @@ def act_linkgroup(text):
     previews.notify("✅ Group linked. From now on every script, video and reminder comes here. Send /help to see everything.")
 
 
+def act_access(text):
+    """text = add:<id>:<name> | del:<id>:<name>. Keeps config.json allowed_users + wrangler ALLOWED_USERS in sync."""
+    op, uid, name = (text.split(":", 2) + ["", ""])[:3]
+    if op not in ("add", "del") or not re.fullmatch(r"\d+", uid):
+        return
+    cp = ROOT / "config.json"; c = json.load(open(cp)); users = c.get("allowed_users", {})
+    if op == "add": users[uid] = name
+    else: users.pop(uid, None)
+    c["allowed_users"] = users; json.dump(c, open(cp, "w"), indent=2, ensure_ascii=False)
+    wp = ROOT / "worker" / "wrangler.toml"; w = open(wp).read()
+    w = re.sub(r'ALLOWED_USERS = "[^"]*"', f'ALLOWED_USERS = "{",".join(users)}"', w); open(wp, "w").write(w)
+    git_commit(f"access {op} {uid}")
+    if not os.environ.get("NO_GIT"):
+        subprocess.run(["gh", "workflow", "run", "deploy-worker.yml"], check=False)
+    who = ", ".join(users.values()) or "nobody else"
+    previews.notify(f"{'✅ ' + name + ' now has access' if op == 'add' else '🚫 ' + name + ' no longer has access'}. "
+                    f"People with access: you + {who}.")
+
+
 # ---------------- buttons ----------------
 def act(action, jid, text):
     job = load_job(jid)
@@ -280,6 +299,7 @@ if __name__ == "__main__":
         elif a == "plan": act_plan(t or j or 7)
         elif a == "status": act_status()
         elif a == "linkgroup": act_linkgroup(t)
+        elif a == "access": act_access(t)
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

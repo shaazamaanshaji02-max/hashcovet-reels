@@ -186,7 +186,11 @@ def act_access(text):
 
 # ---------------- buttons ----------------
 def act(action, jid, text):
-    job = load_job(jid)
+    try:
+        job = load_job(jid)
+    except FileNotFoundError:
+        previews.notify(f"⚠️ That reel ({previews.esc(jid)}) no longer exists — it was an old test. Send /status to see current reels.")
+        return
     if job["status"] in ("ready_to_post", "published") or (job["status"] == "approved" and action != "vok"):
         previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
         return

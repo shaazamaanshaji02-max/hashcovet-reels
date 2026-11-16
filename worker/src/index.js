@@ -67,7 +67,7 @@ async function dispatch(env, action, job = "", text = "") {
                "user-agent": "hashcovet-bot", "content-type": "application/json" },
     body: JSON.stringify({ ref: "main", inputs: { action, job, text: text.slice(0, 4000) } }),
   });
-  if (r.status !== 204) throw new Error(`GitHub dispatch ${r.status}: ${await r.text()}`);
+  if (r.status !== 204 && r.status !== 200) throw new Error(`GitHub dispatch ${r.status}: ${await r.text()}`);
 }
 
 // Exact-time schedule (UTC crons in wrangler.toml; IST = UTC+5:30)
@@ -105,7 +105,8 @@ export default {
     const from = String(u.callback_query?.from?.id ?? u.message?.from?.id ?? "");
     // Link a group: the approver adds the bot to a group and sends /linkgroup there.
     if (u.message?.text?.startsWith("/linkgroup") && from === String(env.APPROVER_CHAT_ID) && chat.startsWith("-")) {
-      await dispatch(env, "linkgroup", "", chat);
+      try { await dispatch(env, "linkgroup", "", chat); }
+      catch (e) { await tg(env, "sendMessage", { chat_id: chat, text: `❌ ${e.message}`.slice(0, 500) }); return new Response("ok"); }
       await tg(env, "sendMessage", { chat_id: chat, text: "🔗 Linking this group… the bot restarts in ~2 minutes, then all reels come here. Everyone in this group can use the buttons." });
       return new Response("ok");
     }
@@ -119,7 +120,7 @@ export default {
         text: "🔒 You don't have access to this bot. Ask the owner.", show_alert: true });
       return new Response("not allowed");
     }
-    const txt = u.message?.text || "";
+    const txt = (u.message?.text || "").replace(/^(\/\w+)@\w+/, "$1");
     if (/^\/(allow|remove|members)/.test(txt)) {
       if (!owner) { await tg(env, "sendMessage", { chat_id: chat, text: "🔒 Only the owner can change who has access." }); return new Response("ok"); }
       if (txt.startsWith("/members")) {
@@ -133,7 +134,8 @@ export default {
       }
       const name = [target.first_name, target.last_name].filter(Boolean).join(" ").replace(/[:,]/g, " ");
       const add = txt.startsWith("/allow");
-      await dispatch(env, "access", "", `${add ? "add" : "del"}:${target.id}:${name}`);
+      try { await dispatch(env, "access", "", `${add ? "add" : "del"}:${target.id}:${name}`); }
+      catch (e) { await tg(env, "sendMessage", { chat_id: chat, text: `❌ ${e.message}`.slice(0, 500) }); return new Response("ok"); }
       await tg(env, "sendMessage", { chat_id: chat, text: `${add ? "✅ Giving access to" : "🚫 Removing access for"} ${name}… takes ~2 minutes.` });
       return new Response("ok");
     }
@@ -153,6 +155,7 @@ export default {
 
       const m = u.message;
       if (!m?.text) return new Response("ok");
+      m.text = m.text.replace(/^(\/\w+)@\w+/, "$1");
       const replyTo = m.reply_to_message?.text || "";
       const job = replyTo.match(/#job:(\S+)/)?.[1], act = replyTo.match(/#act:(\w+)/)?.[1];
       if (job && act) {
@@ -169,9 +172,9 @@ export default {
       } else if (m.text.startsWith("/new")) {
         await dispatch(env, "new", "", m.text.replace("/new", "").trim());
         await tg(env, "sendMessage", { chat_id: chat, text: "📝 Writing a new script…" });
-      } else {
-        await tg(env, "sendMessage", { chat_id: chat,
-          text: HELP });
+      } else if (!chat.startsWith("-")) {
+        // private chat: unknown text -> show the guide (in the group, normal chatting is ignored)
+        await tg(env, "sendMessage", { chat_id: chat, text: HELP });
       }
     } catch (e) {
       await tg(env, "sendMessage", { chat_id: chat, text: `❌ ${e.message}`.slice(0, 900) });

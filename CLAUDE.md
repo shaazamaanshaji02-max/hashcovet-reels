@@ -4,6 +4,14 @@ You are maintaining an automated Instagram-reel factory for **Hashcovet** (#cove
 hashcovet.com), a video production studio. The owner is **not technical**: do the work yourself, explain in plain
 words, and ask them only for things only they can do (pasting secrets, approving in Telegram, account logins).
 
+## FIRST STEP for any new session
+Before changing anything, tell the owner which accounts the task needs and ask them to log in to those in the
+browser first (all use shaazamaanshaji02@gmail.com — see "Accounts used" below). Typical needs:
+- code/design/prompt changes → GitHub (`shaazamaanshaji02-max`)
+- bot buttons/webhook issues → Cloudflare + Telegram
+- voice issues → Hugging Face; script-writer issues → Google AI Studio
+Confirm they are logged in, then start. Keys are pasted by the owner into the secret fields, never into chat.
+
 ## What the system does (end to end)
 1. Daily at 08:47 IST, GitHub Actions `bot.yml` (action `new`) asks a free AI to write a "3 mistakes" reel script
    (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback chain: Gemini → Groq → OpenRouter → Cloudflare Workers AI).

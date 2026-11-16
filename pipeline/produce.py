@@ -3,6 +3,7 @@
   python pipeline/produce.py <job_id> [note]
 """
 import pathlib
+import os
 import sys
 import traceback
 
@@ -39,7 +40,10 @@ if __name__ == "__main__":
     j = sys.argv[1]; n = sys.argv[2] if len(sys.argv) > 2 else ""
     try:
         main(j, n)
+        sys.stdout.flush()
+        os._exit(0)   # voice-service client threads can keep Python alive after we're done
     except Exception as ex:
         traceback.print_exc()
         previews.notify(f"❌ Video production failed for <code>{j}</code>:\n<code>{str(ex)[:600]}</code>")
-        sys.exit(1)
+        sys.stdout.flush()
+        os._exit(1)

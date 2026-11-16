@@ -83,7 +83,13 @@ def _timed(fn, seconds, *a):
 
 def _gradio(space, src, ref, token=None):
     from gradio_client import Client, handle_file
-    c = Client(space, hf_token=token) if token else Client(space)
+    if token:
+        try:
+            c = Client(space, token=token)          # newer gradio_client
+        except TypeError:
+            c = Client(space, hf_token=token)       # older gradio_client
+    else:
+        c = Client(space)
     res = c.predict(handle_file(str(src)), handle_file(str(ref)), 30, 1.0, 0.0, 0.7, 0.9, 1.0, 1.0, False, False,
                     api_name="/predict")
     full = res[1] if isinstance(res, (list, tuple)) else res
@@ -93,7 +99,10 @@ def _gradio(space, src, ref, token=None):
 def _local_cpu(src, ref, work):
     repo = ROOT / ".seedvc"
     if not repo.exists():
-        subprocess.run(["git", "clone", "--depth", "1", "https://github.com/Plachta/seed-vc", str(repo)], check=True)
+        r = subprocess.run(["git", "-c", "http.https://github.com/.extraheader=", "clone", "--depth", "1",
+                            "https://github.com/Plachta/seed-vc", str(repo)], capture_output=True, text=True)
+        if r.returncode:
+            raise RuntimeError("seed-vc download failed: " + (r.stderr or r.stdout)[-200:])
         subprocess.run(["pip", "install", "-q", "-r", str(repo / "requirements.txt")], check=False)
     outdir = work / "seedvc_out"; outdir.mkdir(exist_ok=True)
     subprocess.run(["python", "inference.py", "--source", str(src), "--target", str(ref), "--output", str(outdir),

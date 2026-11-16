@@ -3,7 +3,7 @@ import json
 
 from common import CFG, ROOT, learnings_text, topics_used
 from llm import chat_json
-from spec import ICONS, SCHEMA_DOC, validate
+from spec import DESIGN_DOC, ICONS, SCHEMA_DOC, validate, validate_design
 
 
 def system_prompt():
@@ -56,7 +56,13 @@ FIRST decide: does the instruction ask for a DIFFERENT topic, subject or niche (
 "change the niche to real estate", "new topic about X")? If yes, do not edit — return
 {{"new_topic": "<the subject/niche they want, in their words, plus any details they gave>",
   "rule": "<a rule ONLY if they said this should apply from now on/always, else empty string>"}}
-Otherwise return JSON: {{"spec": <full updated spec, same schema>,
+Layout/design requests (move the logo up, bigger text, change a colour, put a symbol somewhere, add a sticker/emoji/
+text/shape, remove or hide something) are done with an optional "design" object inside the spec:
+{{"css": "#wmLogo{{top:150px !important}} …", "extras": [ … ]}}. Keep any existing spec.design entries and add to them.
+If the approver says the layout change is for ALL videos / from now on, put it in top-level "design_all" (same shape)
+instead of spec.design.
+{DESIGN_DOC}
+Otherwise return JSON: {{"spec": <full updated spec, same schema>, "design_all": <optional, see above>,
  "rule": "<one general, reusable rule so this kind of correction is never needed again, or empty string if the request is one-off>",
  "changes_visuals_or_voice": <true if anything except caption/hashtags/keywords changed>}}
 Keep everything the instruction does not mention unchanged.
@@ -69,12 +75,14 @@ Schema of spec:
             return []
         if "spec" not in o:
             return ["missing 'spec'"]
-        return _v(o["spec"])
+        return _v(o["spec"]) + validate_design(o.get("design_all"))
 
     o, prov = chat_json(system_prompt(), user, v)
     if o.get("new_topic"):
         new, prov2 = write_new(o["new_topic"])
         return new, (o.get("rule") or "").strip(), True, prov2
+    if o.get("design_all"):
+        o["spec"]["_design_all"] = o["design_all"]
     return o["spec"], (o.get("rule") or "").strip(), bool(o.get("changes_visuals_or_voice", True)), prov
 
 

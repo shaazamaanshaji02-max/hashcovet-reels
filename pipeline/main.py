@@ -37,6 +37,19 @@ def dispatch_produce(jid, note=""):
     subprocess.run(["gh", "workflow", "run", "produce.yml", "-f", f"job={jid}", "-f", f"note={note}"], check=True)
 
 
+def take_global_design(spec):
+    """If the AI marked a layout change as 'for all videos', merge it into templates/design_overrides.json."""
+    d = spec.pop("_design_all", None)
+    if not d:
+        return False
+    p = ROOT / "templates" / "design_overrides.json"
+    g = json.loads(p.read_text()) if p.exists() else {}
+    if d.get("css"): g["css"] = (g.get("css", "") + "\n" + d["css"]).strip()
+    if d.get("extras"): g["extras"] = (g.get("extras") or []) + d["extras"]
+    p.write_text(json.dumps(g, indent=2, ensure_ascii=False))
+    return True
+
+
 def learned_note(rule):
     return f"Learned for next time: “{rule}”" if rule else ""
 
@@ -260,10 +273,11 @@ def act(action, jid, text):
 
     elif action == "sch":
         spec, rule, _, prov = ai_tasks.revise(job["spec"], text, "script")
+        glob_d = take_global_design(spec)
         job["spec"] = spec; job["version"] += 1
         added = add_learning(rule, "script_change", jid)
         log_event(job, "script_changed", {"instruction": text, "rule": rule, "by": prov})
-        save_job(job); git_commit(f"script change {jid}")
+        save_job(job); git_commit(f"script change {jid}", extra=("templates/design_overrides.json",))
         previews.script_preview(job, note=learned_note(rule) if added else "")
 
     elif action == "vok":
@@ -297,13 +311,15 @@ def act(action, jid, text):
 
     elif action == "vch":
         spec, rule, needs_render, prov = ai_tasks.revise(job["spec"], text, "video")
+        glob_d = take_global_design(spec); needs_render = needs_render or glob_d
         job["spec"] = spec; job["version"] += 1
         added = add_learning(rule, "video_change", jid)
         log_event(job, "video_change", {"instruction": text, "rule": rule, "rerender": needs_render, "by": prov})
         note = learned_note(rule) if added else ""
         if needs_render:
             job["status"] = "producing"
-            save_job(job); git_commit(f"video change {jid}")
+            if glob_d: note = ("Layout change saved for ALL future videos. " + note).strip()
+            save_job(job); git_commit(f"video change {jid}", extra=("templates/design_overrides.json",))
             previews.notify(f"🎬 {nice_date(jid)}: re-rendering with your change… {note}")
             dispatch_produce(jid, note)
         else:

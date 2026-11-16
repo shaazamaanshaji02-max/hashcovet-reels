@@ -31,7 +31,7 @@ def _len(v, n):
 
 
 def validate(s, max_tags=5):
-    p = []
+    p = validate_design(s.get("design")) if isinstance(s, dict) else []
     try:
         if not _len(s["hook"]["line"], 40): p.append("hook.line missing or >40 chars")
         if not _len(s["hook"]["script"], 14): p.append("hook.script missing or >14 chars")
@@ -75,3 +75,42 @@ def vo_lines(s):
         out += [(f"m{i}", t["vo_mistake"]), (f"f{i}", t["vo_fix"])]
     out += [("save", s["vo"]["save"]), ("cta", s["vo"]["cta"])]
     return out
+
+
+DESIGN_DOC = """Video canvas: 1080x1920 px, black background. Elements you can restyle by id with CSS (use !important;
+positions are px from the top-left of the canvas; prefer changing top/left/right/width/height/font-size/color/opacity/
+margin/filter; animations set opacity and transform, so move things with top/left/margin, not transform):
+  #logoTL  big Hashcovet logo on the 1-second thumbnail (top-left; left 70, top 150, 300x107)
+  #socTR   social icons on the thumbnail (top-right)
+  #webBL   'hashcovet.com' pill on the thumbnail (bottom-left, top 1480)
+  #arrBR   arrow circle on the thumbnail (bottom-right)
+  #wmLogo  small corner logo watermark during the content (left 64, top 190, 190x68)
+  #wmWeb   'hashcovet.com' watermark during the content (right 72, top 212)
+  #h1 hook bold text (top 600) · #h2 hook accent script words (top 880) · #h3 hook small line (top 1170) · #h4 down arrow
+  #kick 'MISTAKE 1' label (top 330) · #title tip title (top 385) · #phone the phone mockup · #badge number badge
+  #fix fix sentence (top 1425)
+  #sv1 bookmark icon · #sv2 #sv3 #sv4 'save this' texts · #e1 end-card logo · #e3 end-card text · #e4 end social icons
+  #e5 end-card website pill · #gTR #gBL magenta glows · #grid background grid
+Brand colours: white #fff, crimson #BA1A58, magenta #811A76; fonts: 'Poppins' (weights 300/600/700), 'Pinyon Script' for accents.
+New things are added as "extras": {"html": "<div>…</div> (text, emoji, inline <svg>, no scripts)",
+ "style": "CSS for the box, e.g. left:700px;top:300px;font-size:60px;color:#BA1A58",
+ "show": one of: thumb, hook, tip1, tip2, tip3, tips, save, cta, content, all}"""
+
+
+def validate_design(d):
+    p = []
+    if not d:
+        return p
+    if not isinstance(d, dict): return ["design must be an object"]
+    css = d.get("css", "")
+    if not isinstance(css, str) or len(css) > 4000: p.append("design.css must be text under 4000 chars")
+    low = (css or "").lower()
+    if "@import" in low or "url(http" in low or "expression(" in low: p.append("design.css may not load outside files")
+    ex = d.get("extras", [])
+    if not isinstance(ex, list) or len(ex) > 8: p.append("design.extras must be a list of at most 8")
+    for e in ex if isinstance(ex, list) else []:
+        h = str(e.get("html", "")).lower() if isinstance(e, dict) else ""
+        if "<script" in h or "javascript:" in h or __import__("re").search(r"\son\w+\s*=", h):
+            p.append("design.extras html may not contain scripts")
+        if len(h) > 1500: p.append("design.extras html too long")
+    return p

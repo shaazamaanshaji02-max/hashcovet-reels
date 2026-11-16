@@ -10,6 +10,9 @@ HOOK SMALL: small line under the hook
 1 SAY MISTAKE: spoken line        1 SAY FIX: spoken line
 SAVE: bold | accent | small line   CTA: bold | accent
 SAY HOOK / SAY SAVE / SAY CTA: spoken lines
+DESIGN CSS: exact CSS for layout, e.g. #wmLogo{top:150px !important}
+ADD: html | css box style | when (thumb/hook/tip1/tip2/tip3/tips/save/cta/content/all)   (one line per new element;
+     sending any ADD line replaces the previous extras)
 """
 import copy
 import re
@@ -32,13 +35,17 @@ def to_text(s):
           f"SAY SAVE: {s['vo']['save']}",
           f"CTA: {s['cta']['line']} | {s['cta']['script']}",
           f"SAY CTA: {s['vo']['cta']}"]
+    d = s.get("design") or {}
+    L += ["", f"DESIGN CSS: {(d.get('css') or '').replace(chr(10), ' ')}"]
+    for e in d.get("extras") or []:
+        L.append(f"ADD: {e.get('html','')} | {e.get('style','')} | {e.get('show','content')}")
     return "\n".join(L)
 
 
 def apply_text(spec, text):
     """Returns (new_spec, list_of_changed_labels, problems)."""
     s = copy.deepcopy(spec)
-    changed, probs = [], []
+    changed, probs, added_extras = [], [], []
     for raw in text.splitlines():
         line = raw.strip()
         if ":" not in line:
@@ -80,6 +87,13 @@ def apply_text(spec, text):
                 s["cta"]["line"] = parts[0]
                 if len(parts) > 1: s["cta"]["script"] = parts[1]
             elif label == "SAY CTA": s["vo"]["cta"] = val
+            elif label == "DESIGN CSS":
+                s.setdefault("design", {})["css"] = val
+            elif label == "ADD":
+                if not added_extras:
+                    s.setdefault("design", {})["extras"] = []; added_extras.append(1)
+                s["design"]["extras"].append({"html": parts[0], "style": parts[1] if len(parts) > 1 else "",
+                                              "show": parts[2] if len(parts) > 2 else "content"})
             else:
                 continue
             changed.append(label)

@@ -122,6 +122,51 @@ def mix(voice, tl, bed_path, out_path):
          "-map", "[o]", "-ar", str(SR), "-ac", "2", str(out_path)])
 
 
+SCENES_DOC = "thumb (first 1 s), hook, tip1, tip2, tip3, tips (all three), save, cta (end card), content (everything after the thumbnail), all"
+
+
+def scene_range(tl, name):
+    t = tl["tips"]
+    m = {"all": (0, tl["D"]), "thumb": (0, tl["thumb"]), "hook": (0, tl["thumb"]),
+         "content": (tl["thumb"], tl["D"]), "tips": (t[0]["s"], t[2]["e"]),
+         "tip1": (t[0]["s"], t[0]["e"]), "tip2": (t[1]["s"], t[1]["e"]), "tip3": (t[2]["s"], t[2]["e"]),
+         "save": (tl["save"]["s"], tl["save"]["e"]), "cta": (tl["cta"]["s"], tl["cta"]["e"])}
+    return m.get(str(name).lower(), m["all"])
+
+
+def load_global_design():
+    p = ROOT / "templates" / "design_overrides.json"
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return {}
+
+
+async def apply_design(pg, spec, tl):
+    """Layout changes requested by the approver: CSS (move/resize/recolour) + extra elements, for all reels
+    (templates/design_overrides.json) and/or this reel only (spec.design)."""
+    css, extras = [], []
+    for d in (load_global_design(), spec.get("design") or {}):
+        if d.get("css"): css.append(d["css"])
+        extras += d.get("extras") or []
+    if css:
+        await pg.add_style_tag(content="\n".join(css))
+    if extras:
+        items = []
+        for e in extras:
+            a, b = scene_range(tl, e.get("show", "content"))
+            items.append({"html": e.get("html", ""), "style": e.get("style", ""), "a": a, "b": b})
+        await pg.evaluate("""(items)=>{
+          const st=document.getElementById('stage'); window.__ex=[];
+          for(const it of items){const d=document.createElement('div'); d.className='extra';
+            d.style.cssText='position:absolute;z-index:50;'+it.style; d.innerHTML=it.html; d.style.opacity=0;
+            st.appendChild(d); window.__ex.push([d,it.a,it.b]);}
+          const s0=window.seek; window.seek=(t)=>{s0(t); for(const [d,a,b] of window.__ex){
+            const k=Math.min(1,Math.max(0,(t-a)/0.25),Math.max(0,(b-t)/0.25)); d.style.opacity=k;}};
+        }""", items)
+        await pg.wait_for_timeout(200)
+
+
 async def _frames(spec, tl, audio, out, fps):
     from playwright.async_api import async_playwright
     ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(fps),
@@ -138,6 +183,7 @@ async def _frames(spec, tl, audio, out, fps):
         await pg.goto((ROOT / "templates" / "reel.html").as_uri())
         await pg.evaluate("document.fonts.ready")
         await pg.evaluate("([s,t])=>setup(s,t)", [spec, tl])
+        await apply_design(pg, spec, tl)
         await pg.wait_for_timeout(400)
         for f in range(int(tl["D"] * fps)):
             await pg.evaluate(f"seek({f / fps})")

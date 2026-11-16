@@ -8,7 +8,7 @@ const PROMPTS = {
   sch: "🤖 What should the AI change in the SCRIPT?",
   vcap: "📝 Send the NEW CAPTION exactly as it should be posted (no hashtags).",
   vtag: "#️⃣ Send the NEW HASHTAGS (space or comma separated, max 5).",
-  vch: "🤖 What should the AI change in the VIDEO? (text, visuals, voice lines, caption, anything)",
+  vch: "🤖 What should the AI change in the VIDEO? Anything: text, voice lines, caption — or layout: move/resize the logo, change colours, add an emoji/sticker/symbol/text somewhere. Say \"for all videos\" to make a layout change permanent.",
 };
 const HELP = `📖 hashcovet reels — how to use
 
@@ -42,8 +42,8 @@ Anyone else in the group cannot press buttons or use commands.
 ✅ Approve video — schedules it for 12:30 PM on its date
 📝 Edit caption — type the exact caption
 #️⃣ Edit hashtags — type the exact hashtags (max 5)
-🤖 Change video with AI — describe any change (text, visuals, voice…)
-✍️ Edit script myself — edit the lines yourself; the video is re-made with exactly that
+🤖 Change video with AI — any change: text, voice, or layout (move logo up, bigger title, add a 🔥 sticker…). Add "for all videos" to keep it
+✍️ Edit script myself — edit the lines yourself (incl. DESIGN CSS / ADD lines for exact layout); the video is re-made with exactly that
 
 🧠 It learns: every change you ask for or text you rewrite becomes a rule, so you won't need to ask again.
 ✍️ To edit: tap a button, then REPLY to the message the bot sends.`;

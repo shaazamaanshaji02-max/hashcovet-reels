@@ -7,7 +7,9 @@ on:
       note: { required: false, default: "" }
 permissions:
   contents: write
-concurrency: { group: produce-${{ github.event.inputs.job }}, cancel-in-progress: true }
+concurrency:
+  group: produce-${{ github.event.inputs.job }}
+  cancel-in-progress: true
 jobs:
   produce:
     runs-on: ubuntu-latest
@@ -29,4 +31,7 @@ jobs:
         run: python pipeline/produce.py "$JOB" "$NOTE"
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: "reel-${{ github.event.inputs.job }}", path: "build/*.mp4", retention-days: 30 }
+        with:
+          name: reel-${{ github.event.inputs.job }}
+          path: build/*.mp4
+          retention-days: 30

@@ -11,7 +11,9 @@ on:
 permissions:
   contents: write
   actions: write
-concurrency: { group: bot-${{ github.event.inputs.job || 'new' }}, cancel-in-progress: false }
+concurrency:
+  group: bot-${{ github.event.inputs.job || 'new' }}
+  cancel-in-progress: false
 jobs:
   run:
     runs-on: ubuntu-latest

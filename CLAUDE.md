@@ -23,8 +23,7 @@ Clock = ONE Cloudflare cron `*/15 * * * *` (free plan max 5 per account); `sched
 Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).
 
 1. 06:00 IST `daily`: if today has no job, a free AI writes a "3 mistakes" script
-   (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → GitHub Models (no key, uses Actions token) →
-   SambaNova → NVIDIA → OpenRouter → Hugging Face → Cloudflare Workers AI; all OpenAI-compatible ones auto-pick a live
+   (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → SambaNova → NVIDIA → OpenRouter → Hugging Face → Cloudflare Workers AI; all OpenAI-compatible ones auto-pick a live
    model via `/models` — table `COMPAT` in llm.py; `/aitest` in Telegram reports which work) and the video is produced automatically (no script approval step for the daily reel).
    `/plan N` writes N scripts, then `produce.py` chains the videos one after another.
 2. The script goes to the approver's Telegram with buttons (`pipeline/previews.py`).
@@ -111,7 +110,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
-- 2026-11-17: Added writers GitHub Models, SambaNova, NVIDIA, Hugging Face (+ /aitest).
+- 2026-11-17: Added writers SambaNova, NVIDIA, Hugging Face, Cloudflare (+ /aitest). GitHub Models was shut down (2026-07-30) — code kept in COMPAT but removed from llm_order. HF writer needs prepaid credits (402) so it rarely helps.
 - 2026-11-16: Voice step time limits (HF spaces 8 min each, local Seed-VC 20 min) — a hung free space had stalled produce 45+ min.
 - 2026-11-16: AI writer hardened: Gemini skips busy (5xx)/retired/quota models; Groq auto-picks a live model; whole chain retries once after 45s. Group linked (-5373889890).
 - 2026-11-16: Group mode: approver sends /linkgroup in a group → `config.json group_chat_id` + `wrangler.toml GROUP_CHAT_ID` set, worker redeployed; pipeline sends to the group.

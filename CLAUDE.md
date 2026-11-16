@@ -23,8 +23,9 @@ Clock = ONE Cloudflare cron `*/15 * * * *` (free plan max 5 per account); `sched
 Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).
 
 1. 06:00 IST `daily`: if today has no job, a free AI writes a "3 mistakes" script
-   (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → OpenRouter →
-   Cloudflare Workers AI) and the video is produced automatically (no script approval step for the daily reel).
+   (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → GitHub Models (no key, uses Actions token) →
+   SambaNova → NVIDIA → OpenRouter → Hugging Face → Cloudflare Workers AI; all OpenAI-compatible ones auto-pick a live
+   model via `/models` — table `COMPAT` in llm.py; `/aitest` in Telegram reports which work) and the video is produced automatically (no script approval step for the daily reel).
    `/plan N` writes N scripts, then `produce.py` chains the videos one after another.
 2. The script goes to the approver's Telegram with buttons (`pipeline/previews.py`).
 3. Buttons/replies → Cloudflare Worker (`worker/src/index.js`) → GitHub `workflow_dispatch` of `bot.yml` with
@@ -76,7 +77,7 @@ inside content only a small corner logo + "hashcovet.com" watermark; end card ke
 | Hugging Face | logged in with shaazamaanshaji02@gmail.com | Arjun voice conversion on free GPU (Seed-VC) | `HF_TOKEN` → huggingface.co/settings/tokens, type **Read** |
 | Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
 | Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram bridge + exact-time crons) | `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers") + `CLOUDFLARE_ACCOUNT_ID`, stored in GitHub; the Worker is deployed by `.github/workflows/deploy-worker.yml`. Optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` for Workers AI backup writer |
-| Groq / OpenRouter (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY`, `OPENROUTER_API_KEY` |
+| Groq / OpenRouter / SambaNova / NVIDIA (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY` (console.groq.com/keys), `OPENROUTER_API_KEY` (openrouter.ai/settings/keys), `SAMBANOVA_API_KEY` (cloud.sambanova.ai/apis), `NVIDIA_API_KEY` (build.nvidia.com → API key); HF writer reuses `HF_TOKEN` (needs "Make calls to Inference Providers"); Cloudflare writer needs `CF_API_TOKEN` with Workers AI permission |
 
 Where each secret is stored:
 - **GitHub → repo Settings → Secrets and variables → Actions:** `GEMINI_API_KEY`, `HF_TOKEN`, `TELEGRAM_BOT_TOKEN`,
@@ -110,6 +111,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-17: Added writers GitHub Models, SambaNova, NVIDIA, Hugging Face (+ /aitest).
 - 2026-11-16: Voice step time limits (HF spaces 8 min each, local Seed-VC 20 min) — a hung free space had stalled produce 45+ min.
 - 2026-11-16: AI writer hardened: Gemini skips busy (5xx)/retired/quota models; Groq auto-picks a live model; whole chain retries once after 45s. Group linked (-5373889890).
 - 2026-11-16: Group mode: approver sends /linkgroup in a group → `config.json group_chat_id` + `wrangler.toml GROUP_CHAT_ID` set, worker redeployed; pipeline sends to the group.

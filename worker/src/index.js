@@ -30,6 +30,7 @@ Every step has two ways to change things: 🤖 tell the AI what to change, or �
 /allow — reply to someone's message with /allow to give them access
 /remove — reply to someone's message with /remove to take it away
 /members — see who has access
+/aitest — check which AI writers are connected and working
 Anyone else in the group cannot press buttons or use commands.
 
 🔘 BUTTONS UNDER A SCRIPT
@@ -167,6 +168,9 @@ export default {
         await tg(env, "sendMessage", { chat_id: chat, text: `🗓 Planning ${n || 30} days ahead… scripts first, then each video's preview as it's ready.` });
       } else if (m.text.startsWith("/help") || m.text.startsWith("/start")) {
         await tg(env, "sendMessage", { chat_id: chat, text: HELP });
+      } else if (m.text.startsWith("/aitest")) {
+        await dispatch(env, "aitest");
+        await tg(env, "sendMessage", { chat_id: chat, text: "🧪 Checking every AI writer… (~1 min)" });
       } else if (m.text.startsWith("/status")) {
         await dispatch(env, "status");
       } else if (m.text.startsWith("/new")) {

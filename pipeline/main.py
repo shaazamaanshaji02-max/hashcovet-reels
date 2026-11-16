@@ -151,6 +151,21 @@ def act_status():
     previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
 
 
+def act_aitest():
+    import llm
+    rows = []
+    for prov in CFG["llm_order"]:
+        try:
+            obj = llm.parse_json(llm._call(prov, "Reply only with JSON.", 'Return {"ok": true}'))
+            m = llm._PICKED.get(prov) or (llm._GEM_MODEL if prov == "gemini" else CFG["llm_models"].get(prov, ""))
+            rows.append(f"✅ {prov} — working ({m})")
+        except Exception as ex:
+            msg = llm._clean(str(ex))
+            why = "no key added yet" if msg.startswith("no ") else msg[:90]
+            rows.append(f"❌ {prov} — {previews.esc(why)}")
+    previews.notify("<b>AI writers check</b> (tried in this order)\n" + "\n".join(rows))
+
+
 def act_linkgroup(text):
     gid = text.strip()
     if not re.fullmatch(r"-\d+", gid):
@@ -304,6 +319,7 @@ if __name__ == "__main__":
         elif a == "status": act_status()
         elif a == "linkgroup": act_linkgroup(t)
         elif a == "access": act_access(t)
+        elif a == "aitest": act_aitest()
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

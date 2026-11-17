@@ -1,0 +1,29 @@
+name: voice-test
+# Manual check that Arjun's voice can be made on GitHub's own computer (no Hugging Face quota).
+on: { workflow_dispatch: {} }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+      - run: pip install -r requirements.txt
+      - name: local voice conversion
+        run: |
+          cd pipeline && python -u - <<'PY'
+          import pathlib, voice
+          from common import ROOT, CFG
+          w = ROOT / "build" / "vt"; w.mkdir(parents=True, exist_ok=True)
+          src = w / "src.wav"
+          import subprocess
+          subprocess.run(["ffmpeg","-y","-loglevel","error","-i",str(ROOT/"test_lines"/"hook.wav"),"-i",str(ROOT/"test_lines"/"m0.wav"),
+                          "-filter_complex","concat=n=2:v=0:a=1",str(src)],check=True)
+          out = voice._local_cpu(src, ROOT / CFG["voice"]["reference"], w)
+          print("OK", out)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: voice-test, path: build/vt/seedvc_out }

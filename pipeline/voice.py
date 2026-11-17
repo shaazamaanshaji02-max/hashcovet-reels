@@ -111,9 +111,16 @@ def _local_cpu(src, ref, work):
         subprocess.run(["pip", "install", "-q", "--retries", "5", *req], check=False)
         subprocess.run(["pip", "install", "-q", "munch"], check=False)
     outdir = work / "seedvc_out"; outdir.mkdir(exist_ok=True)
-    subprocess.run(["python", "inference.py", "--source", str(src), "--target", str(ref), "--output", str(outdir),
-                    "--diffusion-steps", "25", "--length-adjust", "1.0", "--inference-cfg-rate", "0.7",
-                    "--f0-condition", "False"], cwd=repo, check=True, timeout=60 * 20)
+    import time
+    t0 = time.time()
+    r = subprocess.run(["python", "inference.py", "--source", str(src), "--target", str(ref), "--output", str(outdir),
+                        "--diffusion-steps", str(CFG["voice"].get("local_steps", 25)), "--length-adjust", "1.0",
+                        "--inference-cfg-rate", "0.7", "--f0-condition", "False", "--fp16", "False"],
+                       cwd=repo, capture_output=True, text=True, timeout=60 * CFG["voice"].get("local_minutes", 40))
+    print(f"local seed-vc took {time.time() - t0:.0f}s")
+    if r.returncode:
+        print(r.stdout[-3000:]); print(r.stderr[-3000:])
+        raise RuntimeError("local seed-vc crashed: " + (r.stderr or r.stdout)[-300:])
     wavs = sorted(outdir.glob("*.wav"))
     if not wavs:
         raise RuntimeError("local seed-vc produced no output")

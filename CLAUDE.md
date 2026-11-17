@@ -107,6 +107,17 @@ Never ask the owner to paste secrets into chat; have them paste into the GitHub/
 (`CHROME_PATH=/usr/bin/google-chrome` if Playwright's Chromium isn't installed.) Dry-run bot logic with `NO_GIT=1`
 and no Telegram token → messages print instead of sending.
 
+## NEXT TASK (owner approved 2026-11-17, not built yet)
+Replace the synth music bed with real, free, unlimited audio that runs WITHOUT Claude:
+1. Sound effects: open-source **earshot** (github.com/Leonxlnx/earshot, CPU, 201-sound bank rendered by id, no network).
+   Install in produce.yml (pip from git), render whoosh at each tip start, ding/chime at each fix, click at "save",
+   hit at CTA, using the timeline from `render.build_timeline`; mix in `render.make_bed`/`mix`.
+2. Background music: CC0-only tracks from **Openverse** (api.openverse.org/v1/audio/?license=cc0&category=music, anonymous).
+   Fetch ~6 calm/corporate tracks ONCE in a new manual workflow (fetch-music.yml), commit to `assets/music/` with a
+   credits.json (title, creator, url, license); pick one per reel (seeded by job id), loop/trim to length, fade.
+3. Keep Arjun's voice on top (existing sidechain ducking). Fallback to current synth bed if assets missing.
+Do NOT use ElevenLabs or any paid/limited SFX service (owner: free + no limits). Skills only help when Claude runs.
+
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").

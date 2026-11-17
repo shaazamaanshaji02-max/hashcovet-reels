@@ -100,7 +100,7 @@ def _local_cpu(src, ref, work):
     repo = ROOT / ".seedvc"
     if not repo.exists():
         r = subprocess.run(["git", "-c", "http.https://github.com/.extraheader=", "clone", "--depth", "1",
-                            "https://github.com/Plachta/seed-vc", str(repo)], capture_output=True, text=True)
+                            "https://github.com/Plachtaa/seed-vc", str(repo)], capture_output=True, text=True)
         if r.returncode:
             raise RuntimeError("seed-vc download failed: " + (r.stderr or r.stdout)[-200:])
         subprocess.run(["pip", "install", "-q", "-r", str(repo / "requirements.txt")], check=False)
@@ -114,9 +114,42 @@ def _local_cpu(src, ref, work):
     return wavs[-1]
 
 
-def make_voice(spec, work):
-    """Returns (dict key->wav path, method_used, note)."""
+def _voice_key(spec):
+    import hashlib, json
+    v = CFG["voice"]
+    blob = json.dumps({"lines": vo_lines(spec), "voice": v.get("kokoro_voice"), "speed": v.get("kokoro_speed"),
+                       "ref": v.get("reference")}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+
+def cache_dir(job_id):
+    return ROOT / "jobs" / job_id / "voice"
+
+
+def make_voice(spec, work, job_id=None):
+    """Returns (dict key->wav path, method_used, note). Arjun-voice lines are cached per reel: if the spoken words
+    did not change (layout/caption edits), the saved voice is reused — no free-GPU quota spent, no fallback voice."""
     work = pathlib.Path(work); work.mkdir(parents=True, exist_ok=True)
+    key = _voice_key(spec)
+    if job_id:
+        cd = cache_dir(job_id); meta = cd / "meta.txt"
+        if meta.exists() and meta.read_text().split()[0] == key:
+            method = meta.read_text().split()[1]
+            paths = {k: cd / f"v_{k}.wav" for k, _ in vo_lines(spec)}
+            if all(p.exists() for p in paths.values()):
+                print("voice: reusing saved Arjun voice (words unchanged)")
+                return paths, method, ""
+    lines_, method, note = _make_voice(spec, work)
+    if job_id and method != "kokoro_only":
+        cd = cache_dir(job_id); shutil.rmtree(cd, ignore_errors=True); cd.mkdir(parents=True)
+        for k, p in lines_.items():
+            shutil.copy(p, cd / f"v_{k}.wav")
+        (cd / "meta.txt").write_text(f"{key} {method}")
+    return lines_, method, note
+
+
+def _make_voice(spec, work):
+    work = pathlib.Path(work)
     lines = kokoro_lines(spec, work)
     src, offs = concat(lines, work)
     ref = ROOT / CFG["voice"]["reference"]

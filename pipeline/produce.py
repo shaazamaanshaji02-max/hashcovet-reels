@@ -16,7 +16,7 @@ from voice import make_voice
 def main(jid, note=""):
     job = load_job(jid)
     work = ROOT / "build" / jid
-    lines, method, vnote = make_voice(job["spec"], work / "voice")
+    lines, method, vnote = make_voice(job["spec"], work / "voice", jid)
     out = ROOT / "build" / f"{jid}_v{job['version']}.mp4"
     tl = render(job["spec"], lines, out)
     job["status"] = "video_review"
@@ -25,7 +25,7 @@ def main(jid, note=""):
     log_event(job, "video_rendered", {"voice": method, "duration": tl["D"]})
     previews.video_preview(job, out, note=" ".join(x for x in [note, vnote] if x))
     save_job(job)
-    git_commit(f"video {jid} v{job['version']}")
+    git_commit(f"video {jid} v{job['version']}", extra=(f"jobs/{jid}/voice",))
     print(out)
     # advance planning: make the next planned (batch) script's video
     nxt = [j for j in all_jobs() if j.get("batch") and j["status"] == "script_review"]

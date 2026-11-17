@@ -96,7 +96,7 @@ Never ask the owner to paste secrets into chat; have them paste into the GitHub/
 
 ## Common fixes
 - Bot says "All AI providers failed": a model name was retired → update `config.json` `llm_models`, or add a key.
-- Voice says "clone unavailable": HF quota used up or space changed → check `Plachta/Seed-VC` API (`/predict`
+- Voice says "clone unavailable": HF ZeroGPU daily limit used up (resets daily; HF PRO gives more) or space changed → check `Plachta/Seed-VC` API (`/predict`
   params in `voice.py:_gradio`), or add another CPU space to `config.json`.
 - Buttons do nothing: Actions → deploy-worker → Run workflow (redeploys + re-registers webhook); check Worker logs in Cloudflare.
 - Scheduled run stopped: GitHub pauses schedules after 60 days without repo activity; re-enable in Actions tab.
@@ -110,6 +110,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-17: Voice cache: Arjun-voice lines saved in `jobs/<id>/voice/` (meta.txt = hash of spoken lines + method); re-renders reuse them unless the spoken words change — layout edits had burned the HF ZeroGPU daily limit and fallen back to the default voice. Local Seed-VC repo URL fixed to Plachtaa/seed-vc.
 - 2026-11-17: Edit safety (after approver feedback): every change snapshots the exact version (spec + Telegram video id) in job.versions; `↩️ Undo last change` (`vundo`) restores exactly one step, instantly if that version's video exists. Layout edits are MERGED (`main.merge_design`: old CSS kept, new appended) unless the instruction says revert/undo/original; AI gets previous versions' designs so 'revert' = one step back. DESIGN_DOC names the 3 brand places (first frame / inside / end card) so requests hit the right one.
 - 2026-11-17: Owner rule: effort on a reel = it matters. revise() gets all earlier requests on the same reel (repeat = make it clearly visible). On video approval, if the reel had change requests, bot asks once "apply to ALL future videos?" (`keepall`/`keepno`): keepall merges spec.design into design_overrides.json + `ai_tasks.rules_from_requests` → learnings.
 - 2026-11-17: Layout changes: spec.design {css, extras[{html,style,show}]} per reel + `templates/design_overrides.json` for all reels ("for all videos"); applied in `render.py:apply_design`; element ids documented in `spec.py:DESIGN_DOC`; manual edit supports `DESIGN CSS:` / `ADD:` lines.

@@ -115,11 +115,16 @@ def _patch_seedvc_save(repo):
 
 def _local_cpu(src, ref, work):
     repo = ROOT / ".seedvc"
-    if not repo.exists():
+    if not (repo / "inference.py").exists():
+        shutil.rmtree(repo, ignore_errors=True)
         r = subprocess.run(["git", "-c", "http.https://github.com/.extraheader=", "clone", "--depth", "1",
                             "https://github.com/Plachtaa/seed-vc", str(repo)], capture_output=True, text=True)
         if r.returncode:
             raise RuntimeError("seed-vc download failed: " + (r.stderr or r.stdout)[-200:])
+    # Python packages are NOT in the cache (only the tool + model are), so check and install every run.
+    ok = subprocess.run(["python", "-c", "import torch, torchaudio, munch, soundfile, librosa, hydra"],
+                        capture_output=True).returncode == 0
+    if not ok:
         # CPU-only torch (the default CUDA build is huge and its download often breaks), then the rest
         subprocess.run(["pip", "install", "-q", "--retries", "5", "torch", "torchaudio",
                         "--index-url", "https://download.pytorch.org/whl/cpu"], check=False)

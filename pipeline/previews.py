@@ -35,13 +35,15 @@ def script_preview(job, note=""):
             f"<b>Caption draft:</b>\n{esc(caption_block(s))}")
     j = job["id"]
     return send_text(text, kb([[("✅ Approve script", f"a|sok|{j}")],
-                               [("🤖 Change with AI", f"a|sch|{j}"), ("✍️ Edit it myself", f"a|smanq|{j}")]]))
+                               [("🤖 Change with AI", f"a|sch|{j}"), ("✍️ Edit it myself", f"a|smanq|{j}")],
+                               [("↩️ Undo last change", f"a|vundo|{j}")]]))
 
 
 def video_buttons(j):
     return kb([[("✅ Approve video", f"a|vok|{j}")],
                [("📝 Edit caption", f"a|vcap|{j}"), ("#️⃣ Edit hashtags", f"a|vtag|{j}")],
-               [("🤖 Change video with AI", f"a|vch|{j}"), ("✍️ Edit script myself", f"a|vmanq|{j}")]])
+               [("🤖 Change video with AI", f"a|vch|{j}"), ("✍️ Edit script myself", f"a|vmanq|{j}")],
+               [("↩️ Undo last change", f"a|vundo|{j}")]])
 
 
 def video_preview(job, video_path=None, note=""):

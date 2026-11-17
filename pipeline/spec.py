@@ -77,7 +77,15 @@ def vo_lines(s):
     return out
 
 
-DESIGN_DOC = """Video canvas: 1080x1920 px, black background. Elements you can restyle by id with CSS (use !important;
+DESIGN_DOC = """Video canvas: 1080x1920 px, black background.
+THE BRAND APPEARS IN THREE SEPARATE PLACES — pick the right one from the approver's words:
+  A) FIRST FRAME / thumbnail / front / "first part" / first 1 second: #logoTL (big logo), #socTR (social icons),
+     #webBL (website pill), #arrBR (arrow). Social media icons ONLY exist here (and on the end card).
+  B) INSIDE the video / during content / "after the first frame" / "after 1 second": #wmLogo (small logo),
+     #wmWeb (website text). No social icons here.
+  C) END / last frame / end card: #e1 (logo), #e4 + #socEnd (social icons), #e5 (website pill).
+  If the approver's words are ambiguous between places, change ONLY the place they most likely mean and never
+  touch the others. "Keep within the frame" = every edge stays at least 20px inside 0..1080 x 0..1920. Elements you can restyle by id with CSS (use !important;
 positions are px from the top-left of the canvas; prefer changing top/left/right/width/height/font-size/color/opacity/
 margin/filter; animations set opacity and transform, so move things with top/left/margin, not transform):
   #logoTL  big Hashcovet logo on the 1-second thumbnail (top-left; left 70, top 150, 300x107)

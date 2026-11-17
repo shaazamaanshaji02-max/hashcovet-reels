@@ -38,6 +38,8 @@ Anyone else in the group cannot press buttons or use commands.
 🤖 Change with AI — describe the change, the AI rewrites
 ✍️ Edit it myself — you get the script as lines; edit and reply; your exact words are used
 
+↩️ Undo last change — goes back exactly one step (any button below a script or video)
+
 🔘 BUTTONS UNDER A VIDEO
 ✅ Approve video — schedules it for 12:30 PM on its date
 📝 Edit caption — type the exact caption
@@ -48,7 +50,7 @@ Anyone else in the group cannot press buttons or use commands.
 🧠 It learns: every change you ask for or text you rewrite becomes a rule, so you won't need to ask again.
 ✍️ To edit: tap a button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));

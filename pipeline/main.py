@@ -50,6 +50,62 @@ def take_global_design(spec):
     return True
 
 
+import copy as _copy
+
+REVERT_WORDS = re.compile(r"\b(revert|undo|go back|previous version|original|start over|remove (the|that|this) change)\b", re.I)
+
+
+def snapshot(job):
+    """Remember the exact current version (spec + its video) before any change, so undo is exact."""
+    job.setdefault("versions", []).append({"version": job["version"], "spec": _copy.deepcopy(job["spec"]),
+                                           "tg_video_file_id": job.get("tg_video_file_id"),
+                                           "status": job["status"]})
+    job["versions"] = job["versions"][-15:]
+
+
+def prev_designs(job):
+    return [(v["version"], v["spec"].get("design") or {}) for v in job.get("versions", [])]
+
+
+def merge_design(old, new, instruction):
+    """Keep every earlier layout edit unless the approver asked to revert: new rules are appended after the old
+    ones (later CSS wins), extras are added, nothing is silently dropped."""
+    old, new = old or {}, new or {}
+    if REVERT_WORDS.search(instruction or "") or not old:
+        return new or None
+    css_old, css_new = (old.get("css") or "").strip(), (new.get("css") or "").strip()
+    css = css_old if css_new in css_old else (css_old + "\n" + css_new.replace(css_old, "").strip()).strip()
+    extras = list(old.get("extras") or [])
+    for e in new.get("extras") or []:
+        if e not in extras:
+            extras.append(e)
+    out = {}
+    if css: out["css"] = css
+    if extras: out["extras"] = extras
+    return out or None
+
+
+def act_undo(job):
+    vs = job.get("versions") or []
+    if not vs:
+        previews.notify("Nothing to undo — this is the first version.")
+        return
+    last = vs.pop()
+    job["spec"] = last["spec"]; job["version"] += 1
+    log_event(job, "undo", {"back_to": last["version"]})
+    if last.get("tg_video_file_id") and last.get("status") in ("video_review", "approved"):
+        job["tg_video_file_id"] = last["tg_video_file_id"]; job["status"] = "video_review"
+        save_job(job); git_commit(f"undo {job['id']}")
+        previews.video_preview(job, note=f"↩️ Undone — back to exactly v{last['version']} (no re-render needed).")
+    elif last.get("status") == "script_review":
+        job["status"] = "script_review"; save_job(job); git_commit(f"undo {job['id']}")
+        previews.script_preview(job, note=f"↩️ Undone — back to v{last['version']}.")
+    else:
+        job["status"] = "producing"; save_job(job); git_commit(f"undo {job['id']}")
+        previews.notify(f"↩️ Undone — re-making v{last['version']}…")
+        dispatch_produce(job["id"], f"Undone — back to v{last['version']}.")
+
+
 CHANGE_KINDS = ("video_change", "script_changed", "manual_edit", "caption_edited", "hashtags_edited")
 
 
@@ -281,6 +337,12 @@ def act(action, jid, text):
     except FileNotFoundError:
         previews.notify(f"⚠️ That reel ({previews.esc(jid)}) no longer exists — it was an old test. Send /status to see current reels.")
         return
+    if action == "vundo":
+        if job["status"] in ("ready_to_post", "published", "producing"):
+            previews.notify(f"⚠️ Can't undo now — {nice_date(job['date'])} is {job['status'].replace('_', ' ')}.")
+            return
+        act_undo(job)
+        return
     if action in ("keepall", "keepno"):
         act_keep(job, action == "keepall")
         return
@@ -316,6 +378,7 @@ def act(action, jid, text):
             rule = ai_tasks.learn_from_edit("reel script", to_text(job["spec"]), to_text(new))
         except Exception as ex:
             print("learn failed:", ex)
+        snapshot(job)
         job["spec"] = new; job["version"] += 1
         added = add_learning(rule, "manual_script_edit", jid)
         log_event(job, "manual_edit", {"stage": action, "changed": changed, "rule": rule})
@@ -330,8 +393,12 @@ def act(action, jid, text):
             dispatch_produce(jid, note)
 
     elif action == "sch":
-        spec, rule, _, prov = ai_tasks.revise(job["spec"], text, "script", change_requests(job))
+        spec, rule, _, prov = ai_tasks.revise(job["spec"], text, "script", change_requests(job), prev_designs(job))
         glob_d = take_global_design(spec)
+        snapshot(job)
+        if spec.get("topic") == job["spec"].get("topic"):
+            spec["design"] = merge_design(job["spec"].get("design"), spec.get("design"), text)
+            if spec["design"] is None: spec.pop("design")
         job["spec"] = spec; job["version"] += 1
         added = add_learning(rule, "script_change", jid)
         log_event(job, "script_changed", {"instruction": text, "rule": rule, "by": prov})
@@ -357,6 +424,7 @@ def act(action, jid, text):
         else:
             tags = [t if t.startswith("#") else "#" + t for t in re.split(r"[\s,]+", text.strip()) if t]
             new = tags[:CFG["content"]["max_hashtags"]]; before_s, after_s = " ".join(before), " ".join(new)
+        snapshot(job)
         job["spec"][field] = new; job["version"] += 1
         rule = ""
         try:
@@ -369,8 +437,12 @@ def act(action, jid, text):
         previews.video_preview(job, note=("Updated " + field + ". " + (learned_note(rule) if added else "")).strip())
 
     elif action == "vch":
-        spec, rule, needs_render, prov = ai_tasks.revise(job["spec"], text, "video", change_requests(job))
+        spec, rule, needs_render, prov = ai_tasks.revise(job["spec"], text, "video", change_requests(job), prev_designs(job))
         glob_d = take_global_design(spec); needs_render = needs_render or glob_d
+        snapshot(job)
+        if spec.get("topic") == job["spec"].get("topic"):
+            spec["design"] = merge_design(job["spec"].get("design"), spec.get("design"), text)
+            if spec["design"] is None: spec.pop("design")
         job["spec"] = spec; job["version"] += 1
         added = add_learning(rule, "video_change", jid)
         log_event(job, "video_change", {"instruction": text, "rule": rule, "rerender": needs_render, "by": prov})

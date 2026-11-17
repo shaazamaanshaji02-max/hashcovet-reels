@@ -44,7 +44,7 @@ Schema:
     return spec, prov
 
 
-def revise(spec, instruction, stage, earlier=()):
+def revise(spec, instruction, stage, earlier=(), prev_designs=()):
     """Returns (new_spec, rule, needs_render, provider). earlier = previous change requests on this same reel."""
     hist = ""
     if earlier:
@@ -52,6 +52,11 @@ def revise(spec, instruction, stage, earlier=()):
                 "keep satisfying all of them unless the new instruction contradicts one; when the same thing is asked\n"
                 "again it means the last attempt was not enough, so make the change clearly visible this time):\n- "
                 + "\n- ".join(earlier[-8:]) + "\n")
+    if prev_designs:
+        hist += ("Layout (spec.design) of the previous versions of this reel, newest last. If the approver says\n"
+                 "'revert/undo the previous change', go back ONE step to the previous version's design — NEVER to the\n"
+                 "original generated layout unless they explicitly say 'original'/'start over':\n"
+                 + "\n".join(f"  v{v}: {json.dumps(d, ensure_ascii=False)}" for v, d in prev_designs[-4:]) + "\n")
     user = f"""The approver asked for a change at the {stage} stage.
 {hist}Instruction: \"\"\"{instruction}\"\"\"
 

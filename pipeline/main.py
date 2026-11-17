@@ -189,7 +189,18 @@ def publish(job, reason=""):
 
 
 # ---------------- scheduled ----------------
+def act_voicecheck():
+    """Retry Arjun's voice for reels waiting on it (one at a time, oldest first)."""
+    waiting = sorted([j for j in all_jobs() if j["status"] == "voice_pending"], key=lambda j: j["date"])
+    if not waiting:
+        return False
+    j = waiting[0]; j["status"] = "producing"; save_job(j); git_commit(f"voice retry {j['id']}")
+    dispatch_produce(j["id"], "Made with Arjun's voice after a short wait.")
+    return True
+
+
 def act_daily():
+    act_voicecheck()
     today = ist_today()
     try:
         job = load_job(today)
@@ -207,6 +218,7 @@ def act_daily():
 
 
 def act_remind():
+    act_voicecheck()
     today = ist_today()
     try:
         job = load_job(today)
@@ -268,7 +280,7 @@ def act_status():
     if not rows:
         previews.notify("No upcoming reels. Send /new or /plan 30.")
         return
-    icon = {"script_review": "📝", "producing": "⚙️", "video_review": "👀", "approved": "✅",
+    icon = {"script_review": "📝", "producing": "⚙️", "voice_pending": "🎙", "video_review": "👀", "approved": "✅",
             "ready_to_post": "📤", "published": "🟢"}
     lines = [f"{icon.get(j['status'], '•')} {nice_date(j['date'])} — {j['status'].replace('_', ' ')} — "
              f"{j['spec']['topic'][:40]}" for j in rows]
@@ -474,6 +486,7 @@ if __name__ == "__main__":
         elif a == "linkgroup": act_linkgroup(t)
         elif a == "access": act_access(t)
         elif a == "aitest": act_aitest()
+        elif a == "voicecheck": act_voicecheck()
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

@@ -8,7 +8,7 @@ import sys
 import traceback
 
 import previews
-from common import ROOT, all_jobs, git_commit, load_job, log_event, save_job
+from common import CFG, nice_date, ROOT, all_jobs, git_commit, load_job, log_event, save_job
 from render import render
 from voice import make_voice
 
@@ -17,6 +17,16 @@ def main(jid, note=""):
     job = load_job(jid)
     work = ROOT / "build" / jid
     lines, method, vnote = make_voice(job["spec"], work / "voice", jid)
+    if method == "kokoro_only" and CFG["voice"].get("arjun_only", True):
+        # Owner rule: ONLY Arjun's voice, never another voice. Don't make the video; retry automatically.
+        tries = sum(1 for e in job.get("history", []) if e.get("kind") == "voice_wait") + 1
+        job["status"] = "voice_pending"
+        log_event(job, "voice_wait", {"try": tries, "why": vnote[:300]})
+        save_job(job); git_commit(f"voice pending {jid}")
+        previews.notify(f"🎙 {nice_date(jid)}: Arjun's voice couldn't be made right now (free voice service busy). "
+                        f"No other voice will be used — I'll retry automatically every hour and send the video as "
+                        f"soon as it's ready. (attempt {tries})")
+        return
     out = ROOT / "build" / f"{jid}_v{job['version']}.mp4"
     tl = render(job["spec"], lines, out)
     job["status"] = "video_review"

@@ -32,8 +32,8 @@ Statuses: script_review → producing → video_review → approved → ready_to
 4. "Approve script" → `produce.yml` → `pipeline/produce.py`:
    - voice (`pipeline/voice.py`): Kokoro TTS (`am_michael`, correct pronunciation) → Seed-VC converts timbre to
      **Arjun's voice** using `assets/voice/arjun_reference_20s.wav` (consented by Arjun). Order: HF ZeroGPU space
-     `Plachta/Seed-VC` with `HF_TOKEN` → public CPU spaces → local Seed-VC on the runner → else default voice
-     (preview warns).
+     `Plachta/Seed-VC` with `HF_TOKEN` → local Seed-VC on the runner (free, no quota) → public CPU spaces → else
+     NO video: status `voice_pending` + automatic retries (owner rule: never any voice but Arjun's).
    - video (`pipeline/render.py` + `templates/reel.html`): timeline is built from real voice-line durations; Playwright
      renders frames, ffmpeg encodes; synthesized original music ducked under voice.
 5. Owner rule: at EVERY step the approver can either 🤖 instruct the AI or ✍️ give exact content that is used verbatim.
@@ -110,6 +110,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-17: ARJUN-ONLY rule (owner): config voice.arjun_only=true → if every clone method fails, produce does NOT render; job → `voice_pending`, retried at 06:00/08:00/09:00/10:00/11:30/12:15/15:00/18:00/20:00 IST (`voicecheck`, also run by daily/remind). Order hf_gpu → local_cpu → hf_cpu_spaces. Local Seed-VC on the GitHub runner works free (~6-7 min CPU; torchaudio.save patched to soundfile; model + repo cached via actions/cache key seedvc-v1). `voice-test.yml` = manual check.
 - 2026-11-17: Voice cache: Arjun-voice lines saved in `jobs/<id>/voice/` (meta.txt = hash of spoken lines + method); re-renders reuse them unless the spoken words change — layout edits had burned the HF ZeroGPU daily limit and fallen back to the default voice. Local Seed-VC repo URL fixed to Plachtaa/seed-vc.
 - 2026-11-17: Edit safety (after approver feedback): every change snapshots the exact version (spec + Telegram video id) in job.versions; `↩️ Undo last change` (`vundo`) restores exactly one step, instantly if that version's video exists. Layout edits are MERGED (`main.merge_design`: old CSS kept, new appended) unless the instruction says revert/undo/original; AI gets previous versions' designs so 'revert' = one step back. DESIGN_DOC names the 3 brand places (first frame / inside / end card) so requests hit the right one.
 - 2026-11-17: Owner rule: effort on a reel = it matters. revise() gets all earlier requests on the same reel (repeat = make it clearly visible). On video approval, if the reel had change requests, bot asks once "apply to ALL future videos?" (`keepall`/`keepno`): keepall merges spec.design into design_overrides.json + `ai_tasks.rules_from_requests` → learnings.

@@ -76,12 +76,15 @@ async function dispatch(env, action, job = "", text = "") {
 // Exact-time schedule (UTC crons in wrangler.toml; IST = UTC+5:30)
 const CRON_ACTION = {
   "30 0 * * *": "daily",    // 06:00 IST  make today's reel (review by 9 AM)
+  "30 2 * * *": "voicecheck", // 08:00 IST  retry Arjun's voice if a reel is waiting for it
+  "30 3 * * *": "voicecheck", // 09:00 IST
   "30 4 * * *": "remind",   // 10:00 IST
   "0 6 * * *": "remind",    // 11:30 IST
   "45 6 * * *": "remind",   // 12:15 IST
   "0 7 * * *": "publish",   // 12:30 IST  posting slot
   "30 9 * * *": "remind",   // 15:00 IST
   "30 12 * * *": "remind",  // 18:00 IST
+  "30 14 * * *": "voicecheck", // 20:00 IST
 };
 
 export default {

@@ -103,7 +103,13 @@ def _local_cpu(src, ref, work):
                             "https://github.com/Plachtaa/seed-vc", str(repo)], capture_output=True, text=True)
         if r.returncode:
             raise RuntimeError("seed-vc download failed: " + (r.stderr or r.stdout)[-200:])
-        subprocess.run(["pip", "install", "-q", "-r", str(repo / "requirements.txt")], check=False)
+        # CPU-only torch (the default CUDA build is huge and its download often breaks), then the rest
+        subprocess.run(["pip", "install", "-q", "--retries", "5", "torch", "torchaudio",
+                        "--index-url", "https://download.pytorch.org/whl/cpu"], check=False)
+        req = [l.strip() for l in (repo / "requirements.txt").read_text().splitlines()
+               if l.strip() and not l.startswith("#") and not l.lower().startswith(("torch", "--"))]
+        subprocess.run(["pip", "install", "-q", "--retries", "5", *req], check=False)
+        subprocess.run(["pip", "install", "-q", "munch"], check=False)
     outdir = work / "seedvc_out"; outdir.mkdir(exist_ok=True)
     subprocess.run(["python", "inference.py", "--source", str(src), "--target", str(ref), "--output", str(outdir),
                     "--diffusion-steps", "25", "--length-adjust", "1.0", "--inference-cfg-rate", "0.7",

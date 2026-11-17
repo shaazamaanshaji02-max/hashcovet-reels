@@ -206,7 +206,14 @@ def _make_voice(spec, work):
                 if conv is None:
                     raise RuntimeError("all CPU spaces failed")
             elif method == "local_cpu":
-                conv = _local_cpu(src, ref, work)
+                conv = None
+                for attempt in range(CFG["voice"].get("local_tries", 1)):
+                    try:
+                        conv = _local_cpu(src, ref, work); break
+                    except Exception as ex:
+                        print(f"local voice attempt {attempt + 1} failed:", str(ex)[:200])
+                        if attempt + 1 >= CFG["voice"].get("local_tries", 1):
+                            raise
             else:
                 continue
             shutil.copy(conv, work / "converted.wav")

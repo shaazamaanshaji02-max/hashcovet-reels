@@ -23,9 +23,10 @@ def main(jid, note=""):
         job["status"] = "voice_pending"
         log_event(job, "voice_wait", {"try": tries, "why": vnote[:300]})
         save_job(job); git_commit(f"voice pending {jid}")
-        previews.notify(f"🎙 {nice_date(jid)}: Arjun's voice couldn't be made right now (free voice service busy). "
-                        f"No other voice will be used — I'll retry automatically every hour and send the video as "
-                        f"soon as it's ready. (attempt {tries})")
+        previews.notify(f"🎙 <b>{nice_date(jid)}: Arjun's voice could not be made (attempt {tries}).</b>\n"
+                        f"No other voice is used — the video will be sent once Arjun's voice is ready. "
+                        f"Retrying automatically at the next check (08:00, 09:00, 10:00, 11:30, 12:15, 15:00, 18:00, 20:00).\n\n"
+                        f"<b>What went wrong:</b>\n<code>{previews.esc(vnote.replace('⚠️ Voice clone unavailable this time — default voice used. ', ''))[:900]}</code>")
         return
     out = ROOT / "build" / f"{jid}_v{job['version']}.mp4"
     tl = render(job["spec"], lines, out)

@@ -221,4 +221,4 @@ def _make_voice(spec, work):
         except Exception as ex:
             errors.append(f"{method}: {str(ex)[:160]}")
             print("voice conversion failed:", method, ex)
-    return lines, "kokoro_only", "⚠️ Voice clone unavailable this time — default voice used. " + " | ".join(errors)[:300]
+    return lines, "kokoro_only", "\n".join(f"• {e}" for e in errors)[:900]

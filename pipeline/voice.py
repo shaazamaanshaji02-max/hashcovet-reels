@@ -96,6 +96,23 @@ def _gradio(space, src, ref, token=None):
     return pathlib.Path(full if isinstance(full, str) else full["path"])
 
 
+def _patch_seedvc_save(repo):
+    """New torchaudio versions need an extra package just to save a wav; save with soundfile instead."""
+    f = repo / "inference.py"
+    t = f.read_text()
+    if "_sf_save" in t:
+        return
+    helper = ("def _sf_save(path, wav, sr, **kw):\n"
+              "    import soundfile as _sf\n"
+              "    a = wav.detach().cpu().numpy()\n"
+              "    _sf.write(str(path), a.T if a.ndim > 1 else a, sr)\n\n")
+    t = t.replace("torchaudio.save(", "_sf_save(")
+    lines = t.split("\n")
+    i = max(n for n, l in enumerate(lines[:60]) if l.startswith(("import ", "from "))) + 1
+    lines.insert(i, helper)
+    f.write_text("\n".join(lines))
+
+
 def _local_cpu(src, ref, work):
     repo = ROOT / ".seedvc"
     if not repo.exists():
@@ -109,7 +126,8 @@ def _local_cpu(src, ref, work):
         req = [l.strip() for l in (repo / "requirements.txt").read_text().splitlines()
                if l.strip() and not l.startswith("#") and not l.lower().startswith(("torch", "--"))]
         subprocess.run(["pip", "install", "-q", "--retries", "5", *req], check=False)
-        subprocess.run(["pip", "install", "-q", "munch"], check=False)
+        subprocess.run(["pip", "install", "-q", "munch", "soundfile"], check=False)
+    _patch_seedvc_save(repo)
     outdir = work / "seedvc_out"; outdir.mkdir(exist_ok=True)
     import time
     t0 = time.time()

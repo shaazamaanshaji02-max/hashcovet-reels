@@ -11,6 +11,13 @@ jobs:
         with: { python-version: "3.11" }
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
       - run: pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            .seedvc
+            checkpoints
+          key: seedvc-v1
       - name: local voice conversion
         run: |
           cd pipeline && python -u - <<'PY'

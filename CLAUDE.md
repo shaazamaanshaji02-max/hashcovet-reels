@@ -55,7 +55,7 @@ Statuses: script_review → producing → video_review → approved → ready_to
 | Writer rules / tone | `prompts/system.md` |
 | Reel format + validation + char limits + allowed icons | `pipeline/spec.py` (+ icon SVGs in `templates/reel.html`) |
 | Design (Hashcovet look) | `templates/reel.html`, fonts in `assets/fonts/`; approver layout changes for all reels in `templates/design_overrides.json` |
-| Actions router | `pipeline/main.py` (`daily remind publish new plan status` + buttons `sok sch smanq sman vok vcap vtag vch vmanq vman`) |
+| Actions router | `pipeline/main.py` (`daily remind publish new plan status` + buttons `sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno`) |
 | Per-reel history (every version/edit) | `jobs/<id>/job.json` |
 | Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
@@ -110,6 +110,7 @@ and no Telegram token → messages print instead of sending.
 ## Status log (update when you change something)
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
+- 2026-11-17: Owner rule: effort on a reel = it matters. revise() gets all earlier requests on the same reel (repeat = make it clearly visible). On video approval, if the reel had change requests, bot asks once "apply to ALL future videos?" (`keepall`/`keepno`): keepall merges spec.design into design_overrides.json + `ai_tasks.rules_from_requests` → learnings.
 - 2026-11-17: Layout changes: spec.design {css, extras[{html,style,show}]} per reel + `templates/design_overrides.json` for all reels ("for all videos"); applied in `render.py:apply_design`; element ids documented in `spec.py:DESIGN_DOC`; manual edit supports `DESIGN CSS:` / `ADD:` lines.
 - 2026-11-17: Research step (`pipeline/research.py`): Google+YouTube autocomplete phrases + AI brief (pains, angles, hook formulas, hashtag sets) before every script; brief saved in spec.research and shown in the preview. Any niche/topic request (/new <niche> or 🤖 change "make it about X") writes a completely new researched script in that niche (revise() returns new_topic → write_new).
 - 2026-11-17: Added writers SambaNova, NVIDIA, Hugging Face, Cloudflare (+ /aitest). GitHub Models was shut down (2026-07-30) — code kept in COMPAT but removed from llm_order. HF writer needs prepaid credits (402) so it rarely helps.

@@ -44,10 +44,16 @@ Schema:
     return spec, prov
 
 
-def revise(spec, instruction, stage):
-    """Returns (new_spec, rule, needs_render, provider)."""
+def revise(spec, instruction, stage, earlier=()):
+    """Returns (new_spec, rule, needs_render, provider). earlier = previous change requests on this same reel."""
+    hist = ""
+    if earlier:
+        hist = ("Earlier requests on THIS reel, in order (they were already applied; the approver is still refining —\n"
+                "keep satisfying all of them unless the new instruction contradicts one; when the same thing is asked\n"
+                "again it means the last attempt was not enough, so make the change clearly visible this time):\n- "
+                + "\n- ".join(earlier[-8:]) + "\n")
     user = f"""The approver asked for a change at the {stage} stage.
-Instruction: \"\"\"{instruction}\"\"\"
+{hist}Instruction: \"\"\"{instruction}\"\"\"
 
 Current spec:
 {json.dumps(spec, ensure_ascii=False, indent=1)}
@@ -98,3 +104,19 @@ Return JSON: {{"rule": "<one concise reusable rule, or empty string if it is jus
     o, prov = chat_json("You extract reusable style rules from an editor's corrections. Output only JSON.",
                         user, lambda o: [] if "rule" in o else ["missing rule"])
     return (o.get("rule") or "").strip()
+
+
+def rules_from_requests(requests, spec):
+    """Turn the change requests the approver made on one reel into standing rules for every future reel.
+    Layout/position requests are already saved as design, so only writing/style/content preferences become rules."""
+    if not requests:
+        return []
+    user = f"""The approver made these change requests on one reel and wants them applied to ALL future reels:
+{json.dumps(requests, ensure_ascii=False, indent=1)}
+Topic of that reel: {spec.get('topic','')}
+Write short, general rules a script writer can follow next time (tone, wording, caption/hashtag style, structure,
+what to always/never do). Skip pure layout/position requests (already saved separately) and anything only true
+for that one topic. Return JSON: {{"rules": ["...", "..."]}} (0-5 rules)."""
+    o, _ = chat_json("You turn an editor's corrections into reusable rules. Output only JSON.", user,
+                     lambda o: [] if isinstance(o.get("rules"), list) else ["missing rules list"])
+    return [r.strip() for r in o["rules"] if isinstance(r, str) and r.strip()][:5]

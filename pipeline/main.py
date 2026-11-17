@@ -50,6 +50,61 @@ def take_global_design(spec):
     return True
 
 
+CHANGE_KINDS = ("video_change", "script_changed", "manual_edit", "caption_edited", "hashtags_edited")
+
+
+def change_requests(job):
+    out = []
+    for e in job.get("history", []):
+        d = e.get("detail") or {}
+        if e.get("kind") in ("video_change", "script_changed") and isinstance(d, dict) and d.get("instruction"):
+            out.append(d["instruction"])
+        elif e.get("kind") == "manual_edit" and isinstance(d, dict):
+            out.append("Edited by hand: " + ", ".join(d.get("changed", [])[:6]))
+        elif e.get("kind") in ("caption_edited", "hashtags_edited") and isinstance(d, dict):
+            out.append(f"{e['kind'].split('_')[0].title()} replaced with: {str(d.get('after',''))[:160]}")
+    return out
+
+
+def ask_keep_for_all(job):
+    """After approval: if the approver worked on this reel, offer to keep those changes for every future video."""
+    reqs = change_requests(job)
+    if not reqs or any(e.get("kind") == "keep_asked" for e in job.get("history", [])):
+        return
+    log_event(job, "keep_asked", len(reqs))
+    lines = "\n".join(f"• {previews.esc(r[:140])}" for r in reqs[-8:])
+    previews.send_text(
+        f"🙌 You put real work into <b>{nice_date(job['date'])}</b> — {len(reqs)} change(s):\n{lines}\n\n"
+        f"<b>Should these changes apply to ALL future videos?</b> Then you won't have to ask again.",
+        previews.kb([[("✅ Yes, all future videos", f"a|keepall|{job['id']}")],
+                     [("Only this video", f"a|keepno|{job['id']}")]]))
+
+
+def act_keep(job, keep):
+    if not keep:
+        log_event(job, "keep_answer", "only this video"); save_job(job); git_commit(f"keep no {job['id']}")
+        previews.notify("👍 Kept for this video only.")
+        return
+    saved = []
+    d = (job["spec"].get("design") or {})
+    if d.get("css") or d.get("extras"):
+        p = ROOT / "templates" / "design_overrides.json"
+        g = json.loads(p.read_text()) if p.exists() else {}
+        if d.get("css") and d["css"] not in g.get("css", ""):
+            g["css"] = (g.get("css", "") + "\n" + d["css"]).strip()
+        for e in d.get("extras") or []:
+            if e not in (g.get("extras") or []):
+                g.setdefault("extras", []).append(e)
+        p.write_text(json.dumps(g, indent=2, ensure_ascii=False)); saved.append("layout")
+    rules = ai_tasks.rules_from_requests(change_requests(job), job["spec"])
+    n = sum(1 for r in rules if add_learning(r, "kept_for_all", job["id"]))
+    if n: saved.append(f"{n} writing/style rule(s)")
+    log_event(job, "keep_answer", {"all_videos": True, "saved": saved, "rules": rules})
+    save_job(job); git_commit(f"keep for all {job['id']}", extra=("templates/design_overrides.json",))
+    previews.notify("✅ Saved for all future videos: " + (", ".join(saved) or "nothing new to save") +
+                    (".\nRules:\n• " + "\n• ".join(previews.esc(r) for r in rules) if rules else "."))
+
+
 def learned_note(rule):
     return f"Learned for next time: “{rule}”" if rule else ""
 
@@ -226,6 +281,9 @@ def act(action, jid, text):
     except FileNotFoundError:
         previews.notify(f"⚠️ That reel ({previews.esc(jid)}) no longer exists — it was an old test. Send /status to see current reels.")
         return
+    if action in ("keepall", "keepno"):
+        act_keep(job, action == "keepall")
+        return
     if job["status"] in ("ready_to_post", "published") or (job["status"] == "approved" and action != "vok"):
         previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
         return
@@ -272,7 +330,7 @@ def act(action, jid, text):
             dispatch_produce(jid, note)
 
     elif action == "sch":
-        spec, rule, _, prov = ai_tasks.revise(job["spec"], text, "script")
+        spec, rule, _, prov = ai_tasks.revise(job["spec"], text, "script", change_requests(job))
         glob_d = take_global_design(spec)
         job["spec"] = spec; job["version"] += 1
         added = add_learning(rule, "script_change", jid)
@@ -288,7 +346,8 @@ def act(action, jid, text):
             publish(job, "Approved after the 12:30 PM slot — posting now.")
         else:
             previews.notify(f"✅ {nice_date(job['date'])} approved. It will post at 12:30 PM on {nice_date(job['date'])}.")
-        git_commit(f"approved {jid}")
+        ask_keep_for_all(job)
+        save_job(job); git_commit(f"approved {jid}")
 
     elif action in ("vcap", "vtag"):
         field = "caption" if action == "vcap" else "hashtags"
@@ -310,7 +369,7 @@ def act(action, jid, text):
         previews.video_preview(job, note=("Updated " + field + ". " + (learned_note(rule) if added else "")).strip())
 
     elif action == "vch":
-        spec, rule, needs_render, prov = ai_tasks.revise(job["spec"], text, "video")
+        spec, rule, needs_render, prov = ai_tasks.revise(job["spec"], text, "video", change_requests(job))
         glob_d = take_global_design(spec); needs_render = needs_render or glob_d
         job["spec"] = spec; job["version"] += 1
         added = add_learning(rule, "video_change", jid)

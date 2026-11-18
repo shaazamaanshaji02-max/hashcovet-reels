@@ -38,14 +38,7 @@ def main(jid, note=""):
     save_job(job)
     git_commit(f"video {jid} v{job['version']}", extra=(f"jobs/{jid}/voice",))
     print(out)
-    # advance planning: make the next planned (batch) script's video
-    nxt = [j for j in all_jobs() if j.get("batch") and j["status"] == "script_review"]
-    if nxt:
-        n = sorted(nxt, key=lambda j: j["date"])[0]
-        n["status"] = "producing"; save_job(n); git_commit(f"produce batch {n['id']}")
-        from main import dispatch_produce
-        dispatch_produce(n["id"])
-
+    # (no auto-chaining: each video is made only after its own script is approved)
 
 if __name__ == "__main__":
     j = sys.argv[1]; n = sys.argv[2] if len(sys.argv) > 2 else ""

@@ -13,18 +13,19 @@ const PROMPTS = {
 const HELP = `📖 hashcovet reels — how to use
 
 ⏰ EVERY DAY (automatic)
-• 06:00 — today's reel is made and sent here (before 9 AM)
+• 06:00 — today's script is sent here; approve it and the video is made (~10-15 min)
 • 12:30 PM — approved reel posts
 • Approve after 12:30 → posts right away
 • Reminders at 10:00, 11:30, 12:15, 3 PM, 6 PM if not approved
 
 💬 COMMANDS (tap ☰ Menu)
 /status — list of upcoming days and what's approved
-/plan 30 — prepare the next 30 days in advance (up to 62). Previews arrive one by one; approve when free
+/plan 30 — write scripts for the next 30 days (up to 62). Approve each script → its video is made → approve video + caption → it posts on its date
 /new — one extra reel on the next free day (add a topic: /new lighting tips)
 /help — this guide
 
 Every step has two ways to change things: 🤖 tell the AI what to change, or ✍️ write it yourself (used exactly).
+🎵 On every video: Music & sounds — pick the track (or no music), make music / effects louder or quieter, hear the tracks, then Apply.
 
 🔒 ACCESS (owner only)
 /allow — reply to someone's message with /allow to give them access

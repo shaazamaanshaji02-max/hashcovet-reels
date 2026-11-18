@@ -32,6 +32,13 @@ def _len(v, n):
 
 def validate(s, max_tags=5):
     p = validate_design(s.get("design")) if isinstance(s, dict) else []
+    au = s.get("audio") if isinstance(s, dict) else None
+    if au is not None:
+        if not isinstance(au, dict): p.append("audio must be an object")
+        else:
+            for k in ("music", "sfx"):
+                if k in au and not (isinstance(au[k], (int, float)) and 0 <= au[k] <= 1.5):
+                    p.append(f"audio.{k} must be a number 0-1.5")
     try:
         if not _len(s["hook"]["line"], 40): p.append("hook.line missing or >40 chars")
         if not _len(s["hook"]["script"], 14): p.append("hook.script missing or >14 chars")
@@ -102,7 +109,12 @@ margin/filter; animations set opacity and transform, so move things with top/lef
 Brand colours: white #fff, crimson #BA1A58, magenta #811A76; fonts: 'Poppins' (weights 300/600/700), 'Pinyon Script' for accents.
 New things are added as "extras": {"html": "<div>…</div> (text, emoji, inline <svg>, no scripts)",
  "style": "CSS for the box, e.g. left:700px;top:300px;font-size:60px;color:#BA1A58",
- "show": one of: thumb, hook, tip1, tip2, tip3, tips, save, cta, content, all}"""
+ "show": one of: thumb, hook, tip1, tip2, tip3, tips, save, cta, content, all}
+MUSIC & SOUND EFFECTS (music / volume / sound requests) go in an optional "audio" object inside the spec:
+ {"track": "auto" | "none" | one of the music files below, "music": volume 0-1.5 (1 = normal), "sfx": effects volume 0-1.5 (0 = off)}
+ Keep the other audio values unchanged. "quieter"/"lower" = one step down (-0.25); "louder" = +0.25; "no music" = track "none".
+ Music files: """ + "; ".join(f"{c['file']} = {c['title']}" for c in __import__("json").loads(
+    (__import__("pathlib").Path(__file__).resolve().parents[1] / "assets/music/credits.json").read_text()))
 
 
 def validate_design(d):

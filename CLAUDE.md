@@ -22,10 +22,10 @@ Clock = ONE Cloudflare cron `*/15 * * * *` (free plan max 5 per account); `sched
 (12:30). GitHub's own scheduler is NOT used (it runs late). Job id = posting date `YYYY-MM-DD`.
 Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).
 
-1. 06:00 IST `daily`: if today has no job, a free AI writes a "3 mistakes" script
+1. 06:00 IST `daily`: if today has no job, a free AI writes a "3 mistakes" script and sends it for APPROVAL (video only after approval)
    (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → SambaNova → NVIDIA → OpenRouter → Hugging Face → Cloudflare Workers AI; all OpenAI-compatible ones auto-pick a live
-   model via `/models` — table `COMPAT` in llm.py; `/aitest` in Telegram reports which work) and the video is produced automatically (no script approval step for the daily reel).
-   `/plan N` writes N scripts, then `produce.py` chains the videos one after another.
+   model via `/models` — table `COMPAT` in llm.py; `/aitest` in Telegram reports which work).
+   `/plan N` writes N scripts and sends each for approval; each video is made only after its script is approved.
 2. The script goes to the approver's Telegram with buttons (`pipeline/previews.py`).
 3. Buttons/replies → Cloudflare Worker (`worker/src/index.js`) → GitHub `workflow_dispatch` of `bot.yml` with
    `action/job/text`. The Worker is stateless: edit prompts are force-reply messages tagged `#job:<id> #act:<act>`.
@@ -35,7 +35,7 @@ Statuses: script_review → producing → video_review → approved → ready_to
      GitHub runner CPU (free, no quota, ~7 min) → HF ZeroGPU space `Plachta/Seed-VC` with `HF_TOKEN` → public CPU spaces → else
      NO video: status `voice_pending` + automatic retries (owner rule: never any voice but Arjun's).
    - video (`pipeline/render.py` + `templates/reel.html`): timeline is built from real voice-line durations; Playwright
-     renders frames, ffmpeg encodes; synthesized original music ducked under voice.
+     renders frames, ffmpeg encodes; CC0 music + earshot effects ducked under voice (approver controls via 🎵 menu).
 5. Owner rule: at EVERY step the approver can either 🤖 instruct the AI or ✍️ give exact content that is used verbatim.
    Script preview: Approve / 🤖 Change with AI (`sch`) / ✍️ Edit it myself (`smanq`→`sman`, labelled-line format in
    `pipeline/manual.py`). Video preview: Approve / Edit caption / Edit hashtags (exact text) / 🤖 Change video with AI
@@ -85,7 +85,7 @@ inside content only a small corner logo + "hashcovet.com" watermark; end card ke
 | Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
 | Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram bridge + exact-time crons) | `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers") + `CLOUDFLARE_ACCOUNT_ID`, stored in GitHub; the Worker is deployed by `.github/workflows/deploy-worker.yml`. Optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` for Workers AI backup writer |
 | Meta (Facebook + Instagram) | HASHCOVET Facebook Page with the HASHCOVET Instagram professional account linked to it | posting Reels to IG + FB | `META_PAGE_TOKEN` = never-expiring Page access token (Meta app with instagram_content_publish, instagram_basic, pages_show_list, pages_read_engagement, pages_manage_posts, business_management; Graph API Explorer → long-lived user token → `me/accounts` → the Page's access_token). Optional `FB_PAGE_ID`, `IG_USER_ID` (auto-detected) |
-| Google Cloud / YouTube | Google login that owns the HASHCOVET YouTube channel | posting Shorts | `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (OAuth client, YouTube Data API v3 enabled), `YT_REFRESH_TOKEN` (OAuth Playground, scope youtube.upload + youtube.readonly). Unverified Google projects can only upload PRIVATE videos until the free YouTube API audit is passed |
+| Google Cloud / YouTube | Google login that owns the HASHCOVET YouTube channel | posting Shorts | `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (OAuth client, YouTube Data API v3 enabled), `YT_REFRESH_TOKEN` (OAuth Playground, scope youtube.upload + youtube.readonly). Reuse the same Google Cloud project/OAuth client as the @executionwithshaaz YouTube automation (it posts public); only the refresh token is new, authorised with the HASHCOVET channel. publish.py flips the video to public after upload if needed |
 | Groq / OpenRouter / SambaNova / NVIDIA (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY` (console.groq.com/keys), `OPENROUTER_API_KEY` (openrouter.ai/settings/keys), `SAMBANOVA_API_KEY` (cloud.sambanova.ai/apis), `NVIDIA_API_KEY` (build.nvidia.com → API key); HF writer reuses `HF_TOKEN` (needs "Make calls to Inference Providers"); Cloudflare writer needs `CF_API_TOKEN` with Workers AI permission |
 
 Where each secret is stored:
@@ -121,6 +121,8 @@ and no Telegram token → messages print instead of sending.
 - 2026-11-18: Real audio (owner): CC0 music from Openverse (8 tracks fetched, joke track removed; one per reel, seeded by
   the spec; looped/trimmed, faded) + earshot SFX pre-rendered into assets/sfx (whoosh per tip, knock on mistake, ding on
   fix, click on save, riser + hit into the end card). Falls back to the old synth bed if assets are missing.
+- 2026-11-18: Owner rule: script first EVERYWHERE — daily 06:00 and /plan only write + send scripts; a video is made only after its script is approved (no auto-produce, no batch chaining). Then video + caption approval, then posting.
+- 2026-11-18: Music & sounds menu on the video preview (🎵 button, actions aud/at<N>/atA/at0/amd/amu/asd/asu/aso/ahear/aok/adef): pick track/no music/auto, music + effects volume (0-150% in 25% steps), hear tracks, apply (re-render, Arjun voice reused), save as default for all (config.json audio_defaults). Also via 🤖 change (spec.audio, documented in spec.DESIGN_DOC).
 - 2026-11-18: Auto-publishing built (publish.py, repost, /accounts). Waiting for owner to connect HASHCOVET Meta + YouTube secrets.
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").

@@ -163,6 +163,15 @@ def post_youtube(path, spec):
     if r.status_code >= 400:
         _check(r)
     v = _check(requests.put(r.headers["Location"], data=data, headers={"Content-Type": "video/mp4"}, timeout=900))
+    want = meta["status"]["privacyStatus"]
+    if v.get("status", {}).get("privacyStatus") != want:   # same as the @executionwithshaaz flow: flip to public after upload
+        try:
+            u = _check(requests.put("https://www.googleapis.com/youtube/v3/videos?part=status",
+                                    headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
+                                    data=json.dumps({"id": v["id"], "status": meta["status"]}), timeout=60))
+            v["status"] = u.get("status", v.get("status"))
+        except Exception as e:
+            print("youtube: could not set", want, e)
     return {"id": v["id"], "url": f"https://youtube.com/shorts/{v['id']}",
             "privacy": v.get("status", {}).get("privacyStatus")}
 

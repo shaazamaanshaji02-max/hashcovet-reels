@@ -43,7 +43,7 @@ def video_buttons(j):
     return kb([[("✅ Approve video", f"a|vok|{j}")],
                [("📝 Edit caption", f"a|vcap|{j}"), ("#️⃣ Edit hashtags", f"a|vtag|{j}")],
                [("🤖 Change video with AI", f"a|vch|{j}"), ("✍️ Edit script myself", f"a|vmanq|{j}")],
-               [("↩️ Undo last change", f"a|vundo|{j}")]])
+               [("🎵 Music & sounds", f"a|aud|{j}"), ("↩️ Undo last change", f"a|vundo|{j}")]])
 
 
 def video_preview(job, video_path=None, note=""):

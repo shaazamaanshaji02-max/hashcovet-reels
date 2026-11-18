@@ -124,17 +124,32 @@ def music_tracks():
         return []
 
 
-def make_real_bed(tl, path, seed):
+def audio_settings(spec):
+    """Approver's sound choices: config.json audio_defaults (for all reels) overridden by spec.audio (this reel).
+    track: "auto" (picked per reel) | "none" (no music) | a file name in assets/music; music/sfx: volume 0..1.5"""
+    try:
+        d = dict(json.loads((ROOT / "config.json").read_text()).get("audio_defaults") or {})
+    except Exception:
+        d = {}
+    d.update((spec or {}).get("audio") or {})
+    return {"track": d.get("track", "auto"), "music": float(d.get("music", 1.0)), "sfx": float(d.get("sfx", 1.0))}
+
+
+def make_real_bed(tl, path, seed, audio=None):
     """CC0 music from Openverse (assets/music) + earshot sound effects at the scene changes.
     Returns the credit of the track used, or None if the assets are missing (caller falls back to the synth bed)."""
+    audio = audio or {"track": "auto", "music": 1.0, "sfx": 1.0}
     tracks = music_tracks()
     need = ["whoosh", "mistake", "fix", "save", "riser", "cta"]
-    if not tracks or not all((SFX_DIR / f"{k}.wav").exists() for k in need):
+    if not all((SFX_DIR / f"{k}.wav").exists() for k in need) or (not tracks and audio["track"] != "none"):
         return None
     rng = np.random.default_rng(seed)
-    tr = tracks[int(rng.integers(len(tracks)))]
     D = tl["D"]; n = int(SR * D)
-    m = _decode(MUSIC_DIR / tr["file"], 2)
+    if audio["track"] == "none":
+        tr = {"file": "none", "title": "No music"}
+    else:
+        tr = next((t for t in tracks if t["file"] == audio["track"]), None) or tracks[int(rng.integers(len(tracks)))]
+    m = _decode(MUSIC_DIR / tr["file"], 2) if tr["file"] != "none" else np.zeros((n, 2), np.float32)
     if len(m) < n:  # loop short tracks with a small crossfade
         xf = int(.25 * SR); parts = [m]
         while sum(len(p) for p in parts) < n + xf:
@@ -146,7 +161,8 @@ def make_real_bed(tl, path, seed):
     if len(out) < n: out = np.pad(out, ((0, n - len(out)), (0, 0)))
     t = np.arange(n) / SR
     out *= (np.minimum(1, t / .6) * np.clip((D - t) / 1.5, 0, 1))[:, None]
-    out = out / (np.max(np.abs(out)) + 1e-9) * .5          # music sits under the effects + voice
+    out = out / (np.max(np.abs(out)) + 1e-9) * .5 * audio["music"]   # music sits under the effects + voice
+    sg = audio["sfx"]
 
     sfx = {k: _decode(SFX_DIR / f"{k}.wav", 1)[:, 0] for k in need}
 
@@ -157,12 +173,13 @@ def make_real_bed(tl, path, seed):
         if i < n: out[i:j] += (y[:j - i] * g)[:, None]
 
     for x in tl["tips"]:
-        add("whoosh", x["s"] - .13, .55)       # whoosh peak lands on the tip card
-        add("mistake", x["s"] + .6, .5)        # soft knock on the mistake
-        add("fix", x["fx"] + .05, .45)         # ding on the fix
-    add("whoosh", tl["save"]["s"] - .13, .45); add("save", tl["save"]["s"] + .35, .6)
-    add("riser", tl["cta"]["s"] - .39, .5); add("cta", tl["cta"]["s"] - .18 + .18, .7)
-    out = np.tanh(out * 1.1); out = out / np.max(np.abs(out)) * .89
+        add("whoosh", x["s"] - .13, .55 * sg)  # whoosh peak lands on the tip card
+        add("mistake", x["s"] + .6, .5 * sg)  # soft knock on the mistake
+        add("fix", x["fx"] + .05, .45 * sg)  # ding on the fix
+    add("whoosh", tl["save"]["s"] - .13, .45 * sg); add("save", tl["save"]["s"] + .35, .6 * sg)
+    add("riser", tl["cta"]["s"] - .39, .5 * sg); add("cta", tl["cta"]["s"], .7 * sg)
+    out = np.tanh(out * 1.1); pk = np.max(np.abs(out))
+    if pk > .89: out = out / pk * .89   # keep the chosen levels (no re-normalising up)
     d = (out * 32767).astype(np.int16)
     with wave.open(str(path), "wb") as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(d.tobytes())
@@ -266,7 +283,7 @@ def render(spec, line_paths, out, fps=30):
     tmp = pathlib.Path(tempfile.mkdtemp())
     seed = int(hashlib.md5(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()[:8], 16)
     try:
-        track = make_real_bed(tl, tmp / "bed.wav", seed)
+        track = make_real_bed(tl, tmp / "bed.wav", seed, audio_settings(spec))
     except Exception as e:
         print("real music bed failed, using synth bed:", e); track = None
     if not track:

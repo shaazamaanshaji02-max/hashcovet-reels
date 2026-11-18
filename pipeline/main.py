@@ -6,12 +6,12 @@ bot commands, and the Worker's exact-time cron triggers).
 One reel per day. Job id = its posting date (YYYY-MM-DD, IST). Posting slot: 12:30 PM IST.
 
 scheduled (Worker cron, IST):
-  daily    06:00  make sure today's reel exists: write script if missing, then produce the video (review by 9 AM)
+  daily    06:00  make sure today's reel exists: write script if missing and send it for approval (video after approval)
   remind   10:00 11:30 12:15 15:00 18:00  remind if today's reel isn't approved
   publish  12:30  publish today's approved reel (and any overdue approved reels)
 commands:
   new   [topic]   script for the next free date (sent for script approval)
-  plan  N         write scripts for the next N free dates; videos are then produced one after another
+  plan  N         write scripts for the next N free dates and send each for approval (videos only after approval)
   status          list upcoming dates and their state
 buttons:
   sok sch vok vcap vtag vch   (see previews.py)
@@ -233,12 +233,11 @@ def act_daily():
     if job is None:
         job = new_job(today)
         git_commit(f"script {today}")
-    if job["status"] == "script_review":
-        job["status"] = "producing"
-        log_event(job, "auto_produce", "daily 06:00")
-        save_job(job); git_commit(f"auto produce {today}")
-        previews.notify(f"🌅 Making today's reel (<b>{nice_date(today)}</b>, posts 12:30 PM). Preview in a few minutes.")
-        dispatch_produce(today, "Today's reel — approve before 12:30 PM to post on time.")
+    if job["status"] == "script_review" and not any(e.get("kind") == "daily_sent" for e in job.get("history", [])):
+        # Owner rule: script first. The video is made only after the script is approved.
+        log_event(job, "daily_sent", "06:00"); save_job(job); git_commit(f"daily script {today}")
+        previews.script_preview(job, note=f"Today's reel ({nice_date(today)}, posts 12:30 PM). Approve the script and "
+                                          f"the video will be made (~10-15 min).")
 
 
 def act_remind():
@@ -292,10 +291,10 @@ def act_plan(n):
     git_commit(f"plan {len(made)} scripts")
     if made:
         previews.notify(f"🗓 Wrote scripts for <b>{len(made)}</b> days ({nice_date(made[0])} → {nice_date(made[-1])}). "
-                        f"Videos are being made one after another; each preview will arrive here. "
-                        f"Approve whenever you're free — each posts on its own date at 12:30 PM.")
-        first = load_job(made[0]); first["status"] = "producing"; save_job(first); git_commit("produce batch")
-        dispatch_produce(made[0])
+                        f"Each script follows for approval. A video is made only after you approve its script; "
+                        f"then you approve the video + caption, and it posts on its own date at 12:30 PM.")
+        for d in made:
+            previews.script_preview(load_job(d), note=f"for {nice_date(d)} · planned")
 
 
 def act_status():
@@ -366,6 +365,92 @@ def act_access(text):
                     f"People with access: you + {who}.")
 
 
+# ---------------- music & sounds (approver control) ----------------
+VOL_STEPS = [0, .25, .5, .75, 1.0, 1.25, 1.5]
+
+
+def _step(v, d):
+    i = min(range(len(VOL_STEPS)), key=lambda k: abs(VOL_STEPS[k] - v))
+    return VOL_STEPS[max(0, min(len(VOL_STEPS) - 1, i + d))]
+
+
+def audio_menu(job, note=""):
+    from render import audio_settings, music_tracks
+    from common import kb, send_text
+    a = audio_settings(job["spec"]); tracks = music_tracks(); j = job["id"]
+    used = (job.get("timeline") or {}).get("music") or {}
+    cur = {"auto": f"Auto (this reel: {used.get('title', '—')})", "none": "No music"}.get(
+        a["track"], next((t["title"] for t in tracks if t["file"] == a["track"]), a["track"]))
+    pending = job.get("audio_pending")
+    text = (f"🎵 <b>Music & sounds</b> · <code>{j}</code>\n"
+            f"{('ℹ️ ' + previews.esc(note) + chr(10)) if note else ''}"
+            f"Music: <b>{previews.esc(cur)}</b>\nMusic volume: <b>{int(a['music'] * 100)}%</b> · "
+            f"Effects volume: <b>{int(a['sfx'] * 100)}%</b>\n"
+            + ("\n⚠️ Changed — tap <b>🎬 Apply</b> to make the new video." if pending else "")
+            + "\n\nTap 🎧 to hear every track. Tracks are free public-domain (CC0) music from Openverse; "
+              "effects are from earshot.")
+    rows = [[(("✓ " if a["track"] == t["file"] else "") + f"{i}. {t['title'][:24]}", f"a|at{i}|{j}")]
+            for i, t in enumerate(tracks, 1)]
+    rows += [[(("✓ " if a["track"] == "auto" else "") + "🔀 Auto", f"a|atA|{j}"),
+              (("✓ " if a["track"] == "none" else "") + "🔇 No music", f"a|at0|{j}")],
+             [("🎵 Music −", f"a|amd|{j}"), ("🎵 Music +", f"a|amu|{j}")],
+             [("🔔 Effects −", f"a|asd|{j}"), ("🔔 Effects +", f"a|asu|{j}"), ("🔕 Effects off", f"a|aso|{j}")],
+             [("🎧 Hear the tracks", f"a|ahear|{j}")],
+             [("🎬 Apply to this video", f"a|aok|{j}")],
+             [("⭐ Use these settings for ALL future videos", f"a|adef|{j}")]]
+    send_text(text, kb(rows))
+
+
+def act_audio(job, action):
+    from render import audio_settings, music_tracks
+    jid = job["id"]
+    if action == "ahear":
+        from common import tg, chat_id
+        from render import MUSIC_DIR
+        for i, t in enumerate(music_tracks(), 1):
+            with open(MUSIC_DIR / t["file"], "rb") as f:
+                tg("sendAudio", files={"audio": (t["file"], f, "audio/mpeg")}, chat_id=chat_id(),
+                   title=f"{i}. {t['title']}", performer=t.get("creator") or "CC0",
+                   caption=f"Track {i} · CC0 · {t.get('url') or ''}")
+        audio_menu(job, "Pick a number below.")
+        return
+    a = audio_settings(job["spec"])
+    if action == "adef":
+        CFG_PATH = ROOT / "config.json"
+        c = json.loads(CFG_PATH.read_text()); c["audio_defaults"] = a
+        CFG_PATH.write_text(json.dumps(c, indent=2, ensure_ascii=False) + "\n")
+        log_event(job, "audio_default", a); save_job(job)
+        git_commit("audio defaults", extra=("config.json",))
+        previews.notify(f"⭐ Saved for all future videos: music "
+                        f"{'auto' if a['track'] == 'auto' else 'off' if a['track'] == 'none' else a['track']}, "
+                        f"music {int(a['music'] * 100)}%, effects {int(a['sfx'] * 100)}%. "
+                        f"(This video only changes if you tap 🎬 Apply.)")
+        return
+    if action == "aok":
+        if not job.get("audio_pending"):
+            audio_menu(job, "Nothing changed yet."); return
+        snapshot(job)
+        job["version"] += 1; job["status"] = "producing"; job.pop("audio_pending", None)
+        log_event(job, "audio_change", a)
+        save_job(job); git_commit(f"audio change {jid}")
+        previews.notify(f"🎵 {nice_date(jid)}: making the video with the new music/sounds (Arjun's voice is reused)…")
+        dispatch_produce(jid, "New music/sound settings.")
+        return
+    tracks = music_tracks()
+    if action == "atA": a["track"] = "auto"
+    elif action == "at0": a["track"] = "none"
+    elif action.startswith("at") and action[2:].isdigit() and 1 <= int(action[2:]) <= len(tracks):
+        a["track"] = tracks[int(action[2:]) - 1]["file"]
+    elif action == "amd": a["music"] = _step(a["music"], -1)
+    elif action == "amu": a["music"] = _step(a["music"], +1)
+    elif action == "asd": a["sfx"] = _step(a["sfx"], -1)
+    elif action == "asu": a["sfx"] = _step(a["sfx"], +1)
+    elif action == "aso": a["sfx"] = 0
+    job["spec"]["audio"] = a; job["audio_pending"] = True
+    save_job(job); git_commit(f"audio setting {jid}")
+    audio_menu(job)
+
+
 # ---------------- buttons ----------------
 def act(action, jid, text):
     try:
@@ -391,6 +476,17 @@ def act(action, jid, text):
         return
     if job["status"] in ("ready_to_post", "published", "posting", "post_failed") or (job["status"] == "approved" and action != "vok"):
         previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
+        return
+
+    if action == "aud" or action in ("ahear", "aok", "adef", "atA", "at0", "amd", "amu", "asd", "asu", "aso") or \
+            (action.startswith("at") and action[2:].isdigit()):
+        if job["status"] != "video_review":
+            previews.notify(f"ℹ️ Music can be changed while the video is waiting for approval "
+                            f"({nice_date(job['date'])} is {job['status'].replace('_', ' ')}).")
+        elif action == "aud":
+            audio_menu(job)
+        else:
+            act_audio(job, action)
         return
 
     if action == "sok":

@@ -3,7 +3,7 @@ name: bot
 on:
   workflow_dispatch:
     inputs:
-      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck|unpubq|unpub|unpubno|rp*|rmq*|rm*|pman|posted|open|vtime|settime|celebrations|health|remake|fetchmusic", required: true, default: "new" }
+      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck|unpubq|unpub|unpubno|rp*|rmq*|rm*|pman|posted|open|vtime|settime|celebrations|health|remake|fetchmusic|report|reportauto", required: true, default: "new" }
       job:    { description: "job id", required: false, default: "" }
       text:   { description: "instruction / new caption / hashtags / topic hint", required: false, default: "" }
 permissions:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install requests numpy
+      - run: pip install requests numpy matplotlib
       - run: git config user.name "hashcovet-bot" && git config user.email "bot@users.noreply.github.com"
       - name: act
         id: act

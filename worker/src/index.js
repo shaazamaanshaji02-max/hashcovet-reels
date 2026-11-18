@@ -28,6 +28,7 @@ const HELP = `📖 hashcovet reels — how to use
 /time — see the default posting time · /time 18:30 changes it for ALL reels · /time celebration 08:00 for festival reels
 /posted — everything that went out, with links + ⚙️ Manage
 /accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
+/report — analytics now: /report day · /report week · /report month (auto every night 9:30 PM; weekly on Sunday; monthly on the last day)
 /health — check everything is working (also runs every morning at 6 and tells you only if something is wrong)
 
 🩺 IF SOMETHING IS WRONG (6 AM report, /health, or an instant "crashed" alert)
@@ -42,7 +43,7 @@ Each problem comes with a fix button:
 🔗 See the latest crash — opens the error page (send it to Claude if it keeps happening)
 🔗 Open on YouTube — a Short stayed private (Google limits new apps); make it public in YouTube Studio
 🔁 Remake video — also offered when a waiting video file is about to expire (kept 30 days)
-It also warns about GitHub free minutes (2,000/month; each video ≈ 45 min) and storage.
+It also watches GitHub free minutes (2,000/month) and storage.
 🐕 A separate watchdog checks twice a day that the bot itself is alive and linked to Telegram, fixes it if it can, and tells you.
 🩺 Check again — run the check once more
 /help — this guide
@@ -72,10 +73,10 @@ Every delete asks "Yes / No" first — a deleted post can't come back.
 /allow or /remove — reply to someone's message to give / take access · /members — who has access
 /aitest — check the AI writers
 
-🧠 It learns: every change you ask for becomes a rule, so you won't need to ask again.
+🧠 Every change you ask for becomes a rule for future reels.
 ✍️ To type something: tap the button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));
@@ -130,6 +131,7 @@ const CRON_ACTION = {
   "30 9 * * *": "remind",   // 15:00 IST
   "30 12 * * *": "remind",  // 18:00 IST
   "30 14 * * *": "voicecheck", // 20:00 IST
+  "0 16 * * *": "reportauto", // 21:30 IST  daily report (+ weekly on Sunday, monthly on the last day)
 };
 
 export default {
@@ -168,6 +170,7 @@ export default {
         { command: "posted", description: "Everything posted, retry or remove" },
         { command: "accounts", description: "Which accounts it posts to" },
         { command: "health", description: "Check everything is working" },
+        { command: "report", description: "Analytics: day / week / month" },
         { command: "help", description: "How to use the bot" } ] });
       return new Response(JSON.stringify({ webhook: r.ok, description: r.description }));
     }
@@ -244,6 +247,10 @@ export default {
       } else if (m.text.startsWith("/time")) {
         await dispatch(env, "settime", "", m.text.replace("/time", "").trim());
         await tg(env, "sendMessage", { chat_id: chat, text: "🕒 Updating the posting time…" });
+      } else if (m.text.startsWith("/report")) {
+        const p = (m.text.replace("/report", "").trim().toLowerCase().match(/day|week|month/) || ["day"])[0];
+        await dispatch(env, "report", "", p);
+        await tg(env, "sendMessage", { chat_id: chat, text: `📊 Building the ${p} report… (~1-2 min)` });
       } else if (m.text.startsWith("/health")) {
         await dispatch(env, "health");
         await tg(env, "sendMessage", { chat_id: chat, text: "🩺 Running a health check… (~1 min)" });

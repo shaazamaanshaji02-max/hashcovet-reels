@@ -1028,6 +1028,17 @@ if __name__ == "__main__":
         elif a == "voicecheck": act_voicecheck()
         elif a == "posted": act_posted()
         elif a == "health": act_health(force=True)
+        elif a == "report":
+            import analytics
+            analytics.send((t or j or "day").strip().lower().split()[0] if (t or j) else "day")
+            git_commit("analytics snapshot", extra=("data/analytics",))
+        elif a == "reportauto":
+            # 21:30 IST: daily report every day; weekly on Sunday; monthly on the last day of the month
+            import analytics, calendar
+            n = ist_now(); analytics.send("day")
+            if n.weekday() == 6: analytics.send("week")
+            if n.day == calendar.monthrange(n.year, n.month)[1]: analytics.send("month")
+            git_commit("analytics snapshot", extra=("data/analytics",))
         elif a == "fetchmusic": act_fetchmusic()
         elif a == "settime": act_settime(t)
         elif a == "celebrations": act_celebrations(int(t or 1))

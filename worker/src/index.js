@@ -28,6 +28,7 @@ const HELP = `📖 hashcovet reels — how to use
 /time — see the default posting time · /time 18:30 changes it for ALL reels · /time celebration 08:00 for festival reels
 /posted — everything that went out, with links + ⚙️ Manage
 /accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
+/health — check everything is working (also runs every morning at 6 and tells you only if something is wrong)
 /help — this guide
 
 🔘 UNDER A SCRIPT
@@ -149,6 +150,7 @@ export default {
         { command: "time", description: "See / change the posting time" },
         { command: "posted", description: "Everything posted, retry or remove" },
         { command: "accounts", description: "Which accounts it posts to" },
+        { command: "health", description: "Check everything is working" },
         { command: "help", description: "How to use the bot" } ] });
       return new Response(JSON.stringify({ webhook: r.ok, description: r.description }));
     }
@@ -225,6 +227,9 @@ export default {
       } else if (m.text.startsWith("/time")) {
         await dispatch(env, "settime", "", m.text.replace("/time", "").trim());
         await tg(env, "sendMessage", { chat_id: chat, text: "🕒 Updating the posting time…" });
+      } else if (m.text.startsWith("/health")) {
+        await dispatch(env, "health");
+        await tg(env, "sendMessage", { chat_id: chat, text: "🩺 Running a health check… (~1 min)" });
       } else if (m.text.startsWith("/posted")) {
         await dispatch(env, "posted");
         await tg(env, "sendMessage", { chat_id: chat, text: "📋 Getting everything that was posted…" });

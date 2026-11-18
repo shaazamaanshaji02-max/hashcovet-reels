@@ -280,6 +280,10 @@ def act_voicecheck():
 def act_daily():
     act_voicecheck()
     act_celebrations()
+    try:
+        act_health()
+    except Exception as ex:
+        previews.notify(f"🩺 Health check itself failed: <code>{previews.esc(str(ex))[:200]}</code>")
     today = ist_today()
     try:
         job = load_job(today)
@@ -652,6 +656,86 @@ def act_settime(text):
                     f"(reels you gave their own time keep it).")
 
 
+def _since(job):
+    """Hours since this reel last changed."""
+    u = job.get("updated") or (job.get("history") or [{}])[-1].get("at")
+    if not u:
+        return 0
+    t = datetime.datetime.fromisoformat(u.rstrip("Z")).replace(tzinfo=datetime.timezone.utc)
+    return (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() / 3600
+
+
+def act_health(force=False):
+    """🩺 Self-check: accounts, AI writers, stuck/missed reels, failed GitHub runs, sound files.
+    Daily at 06:00 it only speaks up if something is wrong (plus a short 'all OK' on Mondays); /health always answers."""
+    import publish as pub
+    from render import music_tracks, SFX_DIR
+    probs, oks = [], []
+    # 1. social accounts
+    try:
+        for line in pub.check_accounts():
+            (oks if line.startswith("✅") else probs).append(line + ("" if line.startswith("✅") else
+                " → fix: send /accounts; if a login expired, ask Claude to reconnect it"))
+    except Exception as e:
+        probs.append(f"❌ Account check failed: {previews.esc(str(e))[:150]}")
+    # 2. AI writers (one working is enough)
+    import llm
+    ok_ai = None
+    for prov in CFG["llm_order"]:
+        try:
+            llm.parse_json(llm._call(prov, "Reply only with JSON.", 'Return {"ok": true}')); ok_ai = prov; break
+        except Exception:
+            pass
+    (oks.append(f"✅ Script writer: {ok_ai}") if ok_ai else
+     probs.append("❌ No AI script writer is working → fix: send /aitest; a key may have expired"))
+    # 3. reels stuck or missed
+    now = ist_now()
+    for j in all_jobs():
+        st, name = j["status"], f"{'🎉 ' if j.get('kind') == 'celebration' else ''}{nice_date(j['date'])}"
+        if st == "producing" and _since(j) > 4:
+            probs.append(f"⚠️ {name}: video has been 'making' for {int(_since(j))} h → tap Open on it, or ask Claude to check")
+        elif st == "posting" and _since(j) > 1:
+            probs.append(f"⚠️ {name}: stuck while posting → send /posted and use ⚙️ Manage → Retry")
+        elif st == "approved" and now - post_time(j) > datetime.timedelta(minutes=45):
+            probs.append(f"⚠️ {name}: approved but not posted (was due {nice_when(j)}) → it will be retried now")
+        elif st == "voice_pending" and _since(j) > 12:
+            probs.append(f"⚠️ {name}: waiting for Arjun's voice for {int(_since(j))} h → the free voice service may be down")
+        elif st == "post_failed":
+            probs.append(f"⚠️ {name}: some platforms failed → send /posted → ⚙️ Manage → Retry")
+    # 4. GitHub runs that crashed in the last 24 h
+    try:
+        import requests
+        repo, tok = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GH_TOKEN")
+        if repo and tok:
+            since = (datetime.datetime.utcnow() - datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            r = requests.get(f"https://api.github.com/repos/{repo}/actions/runs",
+                             params={"status": "failure", "created": f">={since}", "per_page": 20},
+                             headers={"Authorization": f"Bearer {tok}"}, timeout=30).json()
+            bad = r.get("workflow_runs", [])
+            if bad:
+                names = ", ".join(sorted({b["name"] for b in bad}))
+                probs.append(f"⚠️ {len(bad)} background job(s) crashed in the last 24 h ({previews.esc(names)}) → ask Claude to look")
+            else:
+                oks.append("✅ No crashed background jobs (24 h)")
+    except Exception:
+        pass
+    # 5. sound files
+    if not music_tracks():
+        probs.append("⚠️ Background music files missing → videos fall back to the basic music (Actions → fetch-music)")
+    if not (SFX_DIR / "whoosh.wav").exists():
+        probs.append("⚠️ Sound-effect files missing → videos use basic sounds")
+    sync_schedule()
+    if any("approved but not posted" in p for p in probs):
+        act_publish()
+    monday = now.weekday() == 0
+    if probs:
+        previews.notify(f"🩺 <b>Health check: {len(probs)} issue(s)</b>\n" + "\n".join(probs) +
+                        ("\n\n" + "\n".join(oks) if oks else ""))
+    elif force or monday:
+        previews.notify("🩺 <b>Health check: all OK</b>\n" + "\n".join(oks))
+    print("\n".join(probs + oks))
+
+
 # ---------------- buttons ----------------
 def act(action, jid, text):
     try:
@@ -837,6 +921,7 @@ if __name__ == "__main__":
         elif a == "aitest": act_aitest()
         elif a == "voicecheck": act_voicecheck()
         elif a == "posted": act_posted()
+        elif a == "health": act_health(force=True)
         elif a == "settime": act_settime(t)
         elif a == "celebrations": act_celebrations(int(t or 1))
         elif a == "connectcheck":

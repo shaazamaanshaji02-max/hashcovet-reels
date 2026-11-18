@@ -13,47 +13,50 @@ const PROMPTS = {
 };
 const HELP = `📖 hashcovet reels — how to use
 
-⏰ EVERY DAY (automatic)
-• 06:00 — today's script is sent here; approve it and the video is made
-• 🎉 Celebration days (Christmas, Onam, Diwali…): an extra morning reel, script sent 3 days early
-• Approved reels post at their time (default 12:30 PM) — approve after that time → posts right away
-• Reminders at 10:00, 11:30, 12:15, 3 PM, 6 PM list EVERYTHING still waiting for you, with Open buttons
+🔁 EVERY REEL GOES: script → you approve → video is made → you approve video + caption → it posts (Instagram, Facebook, YouTube Shorts)
+
+⏰ AUTOMATIC
+• 06:00 — today's script is sent here
+• 🎉 Celebration days (Christmas, Onam, Diwali…) — an EXTRA morning reel; its script comes 3 days early
+• Approved reels post at their time (default 12:30 PM). Approved after that time → posts right away
+• Reminders at 10:00, 11:30, 12:15, 3 PM, 6 PM list everything still waiting for you — tap Open to see it
 
 💬 COMMANDS (tap ☰ Menu)
-/status — list of upcoming days and what's approved
-/plan 30 — write scripts for the next 30 days (up to 62). Approve each script → its video is made → approve video + caption → it posts on its date
+/status — upcoming reels with their posting time
 /new — one extra reel on the next free day (add a topic: /new lighting tips)
+/plan 30 — scripts for the next 30 days (max 62); each still needs your approval
+/time — see the default posting time · /time 18:30 changes it for ALL reels · /time celebration 08:00 for festival reels
+/posted — everything that went out, with links + ⚙️ Manage
+/accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
 /help — this guide
 
-Every step has two ways to change things: 🤖 tell the AI what to change, or ✍️ write it yourself (used exactly).
-🎵 On every video: Music & sounds — pick the track (or no music), make music / effects louder or quieter, hear the tracks, then Apply.
-
-🔒 ACCESS (owner only)
-/allow — reply to someone's message with /allow to give them access
-/remove — reply to someone's message with /remove to take it away
-/members — see who has access
-/aitest — check which AI writers are connected and working
-/time — see or change the default posting time for all reels (/time 18:30, /time celebration 08:00). 🕒 on a preview changes just that reel
-/posted — everything that went out, with links; tap Manage to retry or remove (one platform or all)
-/accounts — check which Instagram / Facebook / YouTube accounts reels will post to (posts nothing)
-Anyone else in the group cannot press buttons or use commands.
-
-🔘 BUTTONS UNDER A SCRIPT
+🔘 UNDER A SCRIPT
 ✅ Approve script — make the voice + video
-🤖 Change with AI — describe the change, the AI rewrites
-✍️ Edit it myself — you get the script as lines; edit and reply; your exact words are used
+🤖 Change with AI — describe the change · ✍️ Edit it myself — your exact words are used
+🕒 Posting time — post THIS reel at another time (18:30, 6:30 pm, 25 Dec 9:00, tomorrow 9am, default)
 
-↩️ Undo last change — goes back exactly one step (any button below a script or video)
+🔘 UNDER A VIDEO
+✅ Approve video — it posts at its time
+📝 Edit caption · #️⃣ Edit hashtags — type the exact text
+🤖 Change video with AI — text, voice or layout (add "for all videos" to keep it)
+✍️ Edit script myself — re-made with exactly your lines
+🎵 Music & sounds — pick the track or no music, music / effects louder or quieter, hear the tracks, then Apply
+🕒 Posting time — same as above
+↩️ Undo last change — back exactly one step
 
-🔘 BUTTONS UNDER A VIDEO
-✅ Approve video — schedules it for 12:30 PM on its date
-📝 Edit caption — type the exact caption
-#️⃣ Edit hashtags — type the exact hashtags (max 5)
-🤖 Change video with AI — any change: text, voice, or layout (move logo up, bigger title, add a 🔥 sticker…). Add "for all videos" to keep it
-✍️ Edit script myself — edit the lines yourself (incl. DESIGN CSS / ADD lines for exact layout); the video is re-made with exactly that
+🔘 AFTER IT POSTS (one message per reel, with a link for each platform)
+🔁 Retry Instagram / Facebook / YouTube — ONLY shown if that platform failed; retries just that one (never posts twice)
+🔁 Retry all failed — when more than one failed
+🗑 Instagram / 🗑 Facebook / 🗑 YouTube — delete from just that platform (always shown once posted)
+🗑 Remove from all — delete everywhere
+Every delete asks "Yes / No" first — a deleted post can't come back.
 
-🧠 It learns: every change you ask for or text you rewrite becomes a rule, so you won't need to ask again.
-✍️ To edit: tap a button, then REPLY to the message the bot sends.`;
+🔒 OWNER ONLY
+/allow or /remove — reply to someone's message to give / take access · /members — who has access
+/aitest — check the AI writers
+
+🧠 It learns: every change you ask for becomes a rule, so you won't need to ask again.
+✍️ To type something: tap the button, then REPLY to the message the bot sends.`;
 
 const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
@@ -139,6 +142,14 @@ export default {
     if (req.method === "GET" && url.pathname === "/setup") {
       const r = await tg(env, "setWebhook", { url: `${url.origin}/hook`, secret_token: await hookSecret(env),
         allowed_updates: ["message", "callback_query"], drop_pending_updates: true });
+      await tg(env, "setMyCommands", { commands: [
+        { command: "status", description: "Upcoming reels and their posting time" },
+        { command: "new", description: "One extra reel (add a topic)" },
+        { command: "plan", description: "Scripts for the next N days" },
+        { command: "time", description: "See / change the posting time" },
+        { command: "posted", description: "Everything posted, retry or remove" },
+        { command: "accounts", description: "Which accounts it posts to" },
+        { command: "help", description: "How to use the bot" } ] });
       return new Response(JSON.stringify({ webhook: r.ok, description: r.description }));
     }
     if (req.method !== "POST") return new Response("hashcovet reels bot is running");

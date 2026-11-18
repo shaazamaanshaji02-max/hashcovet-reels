@@ -156,6 +156,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-18 22:50: 🕒 Posting time is now TAP-TO-PICK (owner: typing was misread). Worker-only (instant, no GitHub run per tap): 🕒 / a|vtime|<job> opens a picker message; callbacks `p|<stage>|<job|ALL|FEST>|<value>` — d=day (today..+14), h=hour (24 buttons), m=minutes 00/15/30/45, ok → dispatch vtime 'YYYY-MM-DD HH:MM' (or settime for ALL/FEST), def=normal time, x=cancel (handlePicker/pickerView/sendPicker in worker/src/index.js). Plain /time shows buttons For ALL reels / For celebration reels; typed /time 18:30 still works. (This session edited via GitHub web editor because the session's repo access dropped.)
 - 2026-11-18 22:30: YouTube MOVED (approver request) to **hashcovetsales@gmail.com** (#Covet channel on that account). New Cloud project hashcovet-reels-yt + OAuth client (Web), In production; YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN all replaced (scopes youtube.upload + youtube + yt-analytics.readonly). IG/FB unchanged.
 - 2026-11-18: Health ignores crashes already fixed (a later run of the same workflow succeeded) — old numpy crash no longer reported.
 - 2026-11-18: Deep analytics CONNECTED: META_PAGE_TOKEN re-made with instagram_manage_insights + read_insights; YT_REFRESH_TOKEN re-made with yt-analytics.readonly (YouTube Analytics API enabled). Snapshot 13:12 IST: missing = [] (followers IG 195, FB 12, YT 0).

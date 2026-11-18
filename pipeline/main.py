@@ -784,6 +784,7 @@ def act_health(force=False):
             ns = next((n["id"] for n in requests.get(base, headers=hh, params={"per_page": 100}, timeout=30).json()
                        .get("result", []) if n["title"] == "hashcovet-reels-sched"), None)
             last = requests.get(f"{base}/{ns}/values/lastcron", headers=hh, timeout=30) if ns else None
+            print("clock check: namespace", bool(ns), "lastcron", None if last is None else (last.status_code, last.text[:40]))
             if last is not None and last.status_code == 200:
                 age = (datetime.datetime.now(datetime.timezone.utc) -
                        datetime.datetime.fromisoformat(last.text.replace("Z", "+00:00"))).total_seconds() / 60

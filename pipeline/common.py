@@ -154,7 +154,49 @@ def ist_today():
 
 def slot(date_str):
     d = datetime.date.fromisoformat(date_str)
-    return datetime.datetime(d.year, d.month, d.day, *PUBLISH_HM, tzinfo=IST)
+    return datetime.datetime(d.year, d.month, d.day, *publish_hm(), tzinfo=IST)
+
+
+def publish_hm(kind=None):
+    """Default posting time (IST) for all reels, from config.json publish.time / publish.celebration_time."""
+    c = json.loads((ROOT / "config.json").read_text()).get("publish", {})
+    t = c.get("celebration_time", "08:00") if kind == "celebration" else c.get("time", "12:30")
+    h, m = t.split(":")
+    return int(h), int(m)
+
+
+def post_time(job):
+    """When this reel posts (IST): its own time if the approver set one (job.post_at 'YYYY-MM-DD HH:MM'),
+    else its date at the default time."""
+    if job.get("post_at"):
+        return datetime.datetime.strptime(job["post_at"], "%Y-%m-%d %H:%M").replace(tzinfo=IST)
+    d = datetime.date.fromisoformat(job["date"])
+    return datetime.datetime(d.year, d.month, d.day, *publish_hm(job.get("kind")), tzinfo=IST)
+
+
+def nice_when(job):
+    t = post_time(job)
+    return t.strftime("%a %d %b, %I:%M %p").replace(" 0", " ")
+
+
+def sync_schedule():
+    """Tell the Cloudflare bot when the next approved reel is due, so it wakes GitHub exactly then
+    (KV namespace 'hashcovet-reels-sched', key 'next' = UTC ISO time; empty = nothing waiting)."""
+    acct, tok = os.environ.get("CLOUDFLARE_ACCOUNT_ID"), os.environ.get("CLOUDFLARE_API_TOKEN")
+    if not acct or not tok:
+        return
+    nxt = min((post_time(j) for j in all_jobs() if j["status"] == "approved"), default=None)
+    try:
+        h = {"Authorization": f"Bearer {tok}"}
+        base = f"https://api.cloudflare.com/client/v4/accounts/{acct}/storage/kv/namespaces"
+        ns = next((n["id"] for n in requests.get(base, headers=h, params={"per_page": 100}, timeout=30).json()
+                   .get("result", []) if n["title"] == "hashcovet-reels-sched"), None)
+        if not ns:
+            return
+        val = nxt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if nxt else ""
+        requests.put(f"{base}/{ns}/values/next", headers=h, data=val, timeout=30)
+    except Exception as e:
+        print("schedule sync failed:", e)
 
 
 def all_jobs():
@@ -170,7 +212,7 @@ def all_jobs():
 
 
 def next_free_date(start=None):
-    used = {j["date"] for j in all_jobs()}
+    used = {j["date"] for j in all_jobs() if j.get("kind") != "celebration"}
     d = datetime.date.fromisoformat(start or ist_today())
     while d.isoformat() in used:
         d += datetime.timedelta(days=1)

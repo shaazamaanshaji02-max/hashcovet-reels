@@ -23,6 +23,12 @@ jobs:
           TG: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           GHT: ${{ secrets.WORKER_GITHUB_TOKEN }}
         run: |
+          # schedule store (KV): create once, bind as SCHED
+          API=https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces
+          ID=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API?per_page=100" | python3 -c "import json,sys;print(next((n['id'] for n in json.load(sys.stdin).get('result',[]) if n['title']=='hashcovet-reels-sched'),''))")
+          if [ -z "$ID" ]; then ID=$(curl -s -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "content-type: application/json" -d '{"title":"hashcovet-reels-sched"}' "$API" | python3 -c "import json,sys;print(json.load(sys.stdin)['result']['id'])"); fi
+          echo "KV namespace: $ID"
+          printf '\n[[kv_namespaces]]\nbinding = "SCHED"\nid = "%s"\n' "$ID" >> wrangler.toml
           npx --yes wrangler@3 deploy | tee deploy.log
           printf '%s' "$TG"  | npx --yes wrangler@3 secret put TELEGRAM_BOT_TOKEN
           printf '%s' "$GHT" | npx --yes wrangler@3 secret put GITHUB_TOKEN

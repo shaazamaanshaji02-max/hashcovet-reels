@@ -22,11 +22,12 @@ import subprocess
 import sys
 import traceback
 
+import datetime
 import json
 
 import ai_tasks
 import previews
-from common import (CFG, ROOT, add_learning, add_topic, all_jobs, git_commit, ist_now, ist_today, load_job, log_event,
+from common import (CFG, ROOT, post_time, nice_when, sync_schedule, publish_hm, add_learning, add_topic, all_jobs, git_commit, ist_now, ist_today, load_job, log_event,
                     next_free_date, nice_date, save_job, slot)
 
 
@@ -165,10 +166,12 @@ def learned_note(rule):
     return f"Learned for next time: “{rule}”" if rule else ""
 
 
-def new_job(date, hint=None, batch=False):
+def new_job(date, hint=None, batch=False, kind=None, jid=None):
     spec, prov = ai_tasks.write_new(hint or None)
-    job = {"id": date, "date": date, "status": "script_review", "version": 1, "spec": spec, "provider": prov,
+    job = {"id": jid or date, "date": date, "status": "script_review", "version": 1, "spec": spec, "provider": prov,
            "batch": batch}
+    if kind:
+        job["kind"] = kind
     log_event(job, "script_written", prov)
     add_topic(spec["topic"])
     save_job(job)
@@ -276,6 +279,7 @@ def act_voicecheck():
 
 def act_daily():
     act_voicecheck()
+    act_celebrations()
     today = ist_today()
     try:
         job = load_job(today)
@@ -291,31 +295,61 @@ def act_daily():
                                           f"the video will be made (~10-15 min).")
 
 
-def act_remind():
-    act_voicecheck()
-    today = ist_today()
+def celebration_days():
     try:
-        job = load_job(today)
-    except FileNotFoundError:
-        previews.notify("⏰ No reel exists for today yet. Send /new to make one now.")
+        return json.loads((ROOT / "data" / "celebrations.json").read_text()).get("days", [])
+    except Exception:
+        return []
+
+
+def act_celebrations(days_ahead=3):
+    """Extra morning reel for each celebration day (data/celebrations.json), written `days_ahead` days early
+    and sent for approval like any other script."""
+    today = datetime.date.fromisoformat(ist_today()); made = 0
+    for c in celebration_days():
+        d = datetime.date.fromisoformat(c["date"]); jid = f"{c['date']}-fest"
+        if not (0 <= (d - today).days <= days_ahead) or (ROOT / "jobs" / jid / "job.json").exists():
+            continue
+        hint = (f"CELEBRATION REEL for {c['name']} on {nice_date(c['date'])}: a warm, respectful {c['name']} reel from "
+                f"Hashcovet (video production studio) — the 3 mistakes brands make in their {c['name']} videos/posts and "
+                f"the fix, ending with a short {c['name']} wish from Hashcovet. No religious claims, no stereotypes.")
+        try:
+            job = new_job(c["date"], hint, kind="celebration", jid=jid)
+        except Exception as ex:
+            previews.notify(f"⚠️ Couldn't write the {c['name']} reel: {previews.esc(str(ex))[:200]}"); continue
+        git_commit(f"celebration script {jid}"); made += 1
+        warn = (" ⚠️ This date depends on the moon/lunar calendar — check it's right; "
+                "if not, use 🕒 to move it.") if c.get("tentative") else ""
+        previews.script_preview(job, note=f"🎉 {c['name']} reel — extra morning post on {nice_when(job)}.{warn}")
+    return made
+
+
+def act_remind():
+    """Reminder: every reel still waiting for the approver (any date), oldest first, each with an Open button."""
+    act_voicecheck()
+    from common import kb, send_text
+    now = ist_now()
+    waiting = sorted([j for j in all_jobs() if j["status"] in ("script_review", "video_review")
+                      and post_time(j).date() >= (now - datetime.timedelta(days=7)).date()], key=post_time)
+    if not waiting:
         return
-    if job["status"] in ("approved", "ready_to_post", "published", "posting", "post_failed"):
-        return
-    late = ist_now() >= slot(today)
-    when = "it will post as soon as you approve" if late else "approve before 12:30 PM to post on time"
-    previews.notify(f"⏰ Reminder: today's reel (<b>{nice_date(today)}</b>) is waiting for your approval "
-                    f"(status: {job['status'].replace('_', ' ')}) — {when}.")
-    if job["status"] == "video_review":
-        previews.video_preview(job, note="Reminder")
-    elif job["status"] == "script_review":
-        previews.script_preview(job, note="Reminder")
+    lines, rows = [], []
+    for j in waiting[:12]:
+        what = "script" if j["status"] == "script_review" else "video + caption"
+        late = " — ⚠️ time passed, posts as soon as approved" if now >= post_time(j) else ""
+        tag = "🎉 " if j.get("kind") == "celebration" else ""
+        lines.append(f"• {tag}<b>{nice_when(j)}</b>: {what} to approve{late}")
+        rows.append([(f"Open {tag}{nice_date(j['date'])} ({'script' if what == 'script' else 'video'})", f"a|open|{j['id']}")])
+    more = f"\n…and {len(waiting) - 12} more (send /status)" if len(waiting) > 12 else ""
+    send_text(f"⏰ <b>Waiting for your approval ({len(waiting)})</b>\n" + "\n".join(lines) + more, kb(rows))
 
 
 def act_publish():
-    for job in all_jobs():
-        if job["status"] == "approved" and ist_now() >= slot(job["date"]):
-            publish(job, "Scheduled 12:30 PM slot.")
+    for job in sorted(all_jobs(), key=post_time):
+        if job["status"] == "approved" and ist_now() >= post_time(job):
+            publish(job, f"Scheduled for {nice_when(job)}.")
     git_commit("publish slot")
+    sync_schedule()
 
 
 # ---------------- commands ----------------
@@ -350,14 +384,15 @@ def act_plan(n):
 
 def act_status():
     today = ist_today()
-    rows = [j for j in all_jobs() if j["date"] >= today][:40]
+    rows = [j for j in all_jobs() if j["date"] >= today][:45]
     if not rows:
         previews.notify("No upcoming reels. Send /new or /plan 30.")
         return
     icon = {"script_review": "📝", "producing": "⚙️", "voice_pending": "🎙", "video_review": "👀", "approved": "✅",
             "ready_to_post": "📤", "published": "🟢", "posting": "📡", "post_failed": "⚠️", "removed": "🗑"}
-    lines = [f"{icon.get(j['status'], '•')} {nice_date(j['date'])} — {j['status'].replace('_', ' ')} — "
-             f"{j['spec']['topic'][:40]}" for j in rows]
+    rows = sorted(rows, key=post_time)
+    lines = [f"{icon.get(j['status'], '•')} {'🎉 ' if j.get('kind') == 'celebration' else ''}{nice_when(j)} — "
+             f"{j['status'].replace('_', ' ')} — {j['spec']['topic'][:40]}" for j in rows]
     previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
 
 
@@ -532,6 +567,91 @@ def act_remove(job, action):
         job["published"][p]["error"] = "remove failed: " + res[p]
     post_card(job, note)
 
+def parse_when(text, job):
+    """'18:30', '6:30 pm', '25 Dec 9:00', '2026-12-25 09:00', 'tomorrow 9am', 'default' -> 'YYYY-MM-DD HH:MM' or ''."""
+    t = (text or "").strip().lower()
+    if t in ("default", "reset", "normal"):
+        return ""
+    m = re.search(r"(\d{1,2})(?::|\.)?(\d{2})?\s*(am|pm)?\s*$", t)
+    if not m:
+        raise ValueError("no time")
+    h, mi = int(m.group(1)), int(m.group(2) or 0)
+    if m.group(3) == "pm" and h < 12: h += 12
+    if m.group(3) == "am" and h == 12: h = 0
+    if not (0 <= h < 24 and 0 <= mi < 60):
+        raise ValueError("bad time")
+    rest = re.sub(r"[\s,]*(at|@)?[\s,]*$", "", t[:m.start()]).strip()
+    d = post_time(job).date()
+    if rest in ("today",): d = ist_now().date()
+    elif rest in ("tomorrow", "tmrw"): d = ist_now().date() + datetime.timedelta(days=1)
+    elif rest:
+        for fmt in ("%Y-%m-%d", "%d %b", "%d %B", "%b %d", "%B %d", "%d/%m", "%d-%m", "%d %b %Y", "%d %B %Y"):
+            try:
+                x = datetime.datetime.strptime(rest.title() if "%b" in fmt or "%B" in fmt else rest, fmt).date()
+                if "%Y" not in fmt:
+                    x = x.replace(year=ist_now().year)
+                    if x < ist_now().date(): x = x.replace(year=x.year + 1)
+                d = x; break
+            except ValueError:
+                pass
+        else:
+            raise ValueError("bad date")
+    return f"{d.isoformat()} {h:02d}:{mi:02d}"
+
+
+def act_vtime(job, text):
+    """🕒 Change when ONE reel posts. Without text: ask. 'default' = back to the normal time."""
+    from common import send_text
+    if job["status"] in ("published", "posting", "removed"):
+        previews.notify(f"ℹ️ {nice_date(job['date'])} has already been posted."); return
+    if not text:
+        tg_force(job, "vtime"); return
+    try:
+        val = parse_when(text, job)
+    except ValueError:
+        previews.notify("⚠️ I couldn't read that time. Examples: <code>18:30</code>, <code>6:30 pm</code>, "
+                        "<code>25 Dec 9:00</code>, <code>tomorrow 9am</code>, <code>default</code>."); return
+    if val: job["post_at"] = val
+    else: job.pop("post_at", None)
+    log_event(job, "post_time", val or "default"); save_job(job); git_commit(f"post time {job['id']}")
+    past = ist_now() >= post_time(job)
+    msg = f"🕒 {nice_date(job['date'])} will post on <b>{nice_when(job)}</b>."
+    if job["status"] == "approved" and past:
+        publish(job, "New time is already past — posting now."); save_job(job); git_commit(f"posted {job['id']}")
+    elif job["status"] != "approved":
+        msg += " (after you approve it)"
+    send_text(msg); sync_schedule()
+
+
+def tg_force(job, act):
+    from common import tg, chat_id
+    prompts = {"vtime": "🕒 When should this reel post? Send a time like 18:30 or 6:30 pm, or a date + time like "
+                        "25 Dec 9:00 / tomorrow 9am (India time). Send 'default' for the normal time. "
+                        "Times are rounded to the next 15 minutes."}
+    tg("sendMessage", chat_id=chat_id(), text=f"{prompts[act]}\n\n#job:{job['id']} #act:{act}\n(reply to this message)",
+       reply_markup={"force_reply": True, "input_field_placeholder": "e.g. 18:30"})
+
+
+def act_settime(text):
+    """/time 18:30 = default posting time for ALL reels; /time celebration 08:00 = for celebration reels."""
+    t = (text or "").strip().lower()
+    key = "celebration_time" if t.startswith("cele") or t.startswith("fest") else "time"
+    m = re.search(r"(\d{1,2})(?::|\.)?(\d{2})?\s*(am|pm)?\s*$", t)
+    if not m:
+        h, mi = publish_hm(); hc, mc = publish_hm("celebration")
+        previews.notify(f"🕒 Default posting time: <b>{h:02d}:{mi:02d}</b> (celebration reels: {hc:02d}:{mc:02d}).\n"
+                        f"Change for all reels: <code>/time 18:30</code> · celebration reels: <code>/time celebration 08:00</code>.\n"
+                        f"Change one reel: 🕒 button on its preview."); return
+    h, mi = int(m.group(1)), int(m.group(2) or 0)
+    if m.group(3) == "pm" and h < 12: h += 12
+    if m.group(3) == "am" and h == 12: h = 0
+    c = json.loads((ROOT / "config.json").read_text()); c.setdefault("publish", {})[key] = f"{h:02d}:{mi:02d}"
+    (ROOT / "config.json").write_text(json.dumps(c, indent=2, ensure_ascii=False) + "\n")
+    git_commit("posting time", extra=("config.json",)); sync_schedule()
+    previews.notify(f"🕒 From now on {'celebration reels' if key != 'time' else 'all reels'} post at <b>{h:02d}:{mi:02d}</b> "
+                    f"(reels you gave their own time keep it).")
+
+
 # ---------------- buttons ----------------
 def act(action, jid, text):
     try:
@@ -551,6 +671,14 @@ def act(action, jid, text):
     if action in ("unpubq", "unpub", "unpubno") or re.fullmatch(r"rmq?[ify]", action):
         act_remove(job, action)
         return
+    if action == "open":
+        if job["status"] == "script_review": previews.script_preview(job, note=f"Posts {nice_when(job)}")
+        elif job["status"] == "video_review": previews.video_preview(job, note=f"Posts {nice_when(job)}")
+        elif job.get("published"): post_card(job)
+        else: previews.notify(f"ℹ️ {nice_date(job['date'])} is {job['status'].replace('_', ' ')}.")
+        return
+    if action == "vtime":
+        act_vtime(job, text); return
     if action == "pman":
         post_card(job); return
     if action == "repost" or re.fullmatch(r"rp[ify]", action):
@@ -639,12 +767,15 @@ def act(action, jid, text):
         job["status"] = "approved"
         log_event(job, "video_approved", "")
         save_job(job)
-        if ist_now() >= slot(job["date"]):
-            publish(job, "Approved after the 12:30 PM slot — posting now.")
+        if ist_now() >= post_time(job):
+            publish(job, "Approved after its posting time — posting now.")
         else:
-            previews.notify(f"✅ {nice_date(job['date'])} approved. It will post at 12:30 PM on {nice_date(job['date'])}.")
+            from common import kb, send_text
+            send_text(f"✅ {nice_date(job['date'])} approved. It will post on <b>{nice_when(job)}</b>.",
+                      kb([[("🕒 Change posting time", f"a|vtime|{jid}")]]))
         ask_keep_for_all(job)
         save_job(job); git_commit(f"approved {jid}")
+        sync_schedule()
 
     elif action in ("vcap", "vtag"):
         field = "caption" if action == "vcap" else "hashtags"
@@ -706,6 +837,8 @@ if __name__ == "__main__":
         elif a == "aitest": act_aitest()
         elif a == "voicecheck": act_voicecheck()
         elif a == "posted": act_posted()
+        elif a == "settime": act_settime(t)
+        elif a == "celebrations": act_celebrations(int(t or 3))
         elif a == "connectcheck":
             import publish as pub
             lines = pub.check_accounts(); print("\n".join(lines))

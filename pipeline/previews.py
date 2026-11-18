@@ -25,7 +25,8 @@ def script_preview(job, note=""):
         f"<b>{i}.</b> {esc(t['title'])} <i>{esc(t['title_script'])}</i> {esc(t.get('title_after',''))}\n"
         f"   🎙 {esc(t['vo_mistake'])} / {esc(t['vo_fix'])}\n   ✅ Fix: {esc(t['fix'])}"
         for i, t in enumerate(s["tips"], 1))
-    text = (f"📝 <b>SCRIPT for approval</b> · <code>{job['id']}</code> (v{job['version']})\n"
+    from common import nice_when
+    text = (f"📝 <b>SCRIPT for approval</b> · <code>{job['id']}</code> (v{job['version']}) · posts {nice_when(job)}\n"
             f"{('ℹ️ ' + esc(note) + chr(10)) if note else ''}"
             f"<b>Topic:</b> {esc(s['topic'])}\n"
             f"{research_line(s)}\n"
@@ -36,6 +37,7 @@ def script_preview(job, note=""):
     j = job["id"]
     return send_text(text, kb([[("✅ Approve script", f"a|sok|{j}")],
                                [("🤖 Change with AI", f"a|sch|{j}"), ("✍️ Edit it myself", f"a|smanq|{j}")],
+                               [("🕒 Posting time", f"a|vtime|{j}")],
                                [("↩️ Undo last change", f"a|vundo|{j}")]]))
 
 
@@ -43,13 +45,15 @@ def video_buttons(j):
     return kb([[("✅ Approve video", f"a|vok|{j}")],
                [("📝 Edit caption", f"a|vcap|{j}"), ("#️⃣ Edit hashtags", f"a|vtag|{j}")],
                [("🤖 Change video with AI", f"a|vch|{j}"), ("✍️ Edit script myself", f"a|vmanq|{j}")],
-               [("🎵 Music & sounds", f"a|aud|{j}"), ("↩️ Undo last change", f"a|vundo|{j}")]])
+               [("🎵 Music & sounds", f"a|aud|{j}"), ("🕒 Posting time", f"a|vtime|{j}")],
+               [("↩️ Undo last change", f"a|vundo|{j}")]])
 
 
 def video_preview(job, video_path=None, note=""):
     """Sends the video (file, or cached Telegram file_id when nothing visual changed) + caption + buttons."""
     j = job["id"]
-    head = f"🎬 <b>VIDEO for approval</b> · <code>{j}</code> (v{job['version']})"
+    from common import nice_when
+    head = f"🎬 <b>VIDEO for approval</b> · <code>{j}</code> (v{job['version']}) · posts {nice_when(job)}"
     if note:
         head += f"\nℹ️ {esc(note)}"
     if video_path:

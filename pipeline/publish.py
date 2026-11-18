@@ -214,6 +214,13 @@ def check_accounts():
             if ig:
                 u = _check(requests.get(f"{GRAPH}/{ig}", params={"fields": "username", "access_token": tok}, timeout=60))
                 out.append(f"✅ Instagram: @{u.get('username')}")
+                try:
+                    sc = _check(requests.get(f"{GRAPH}/debug_token", params={"input_token": tok, "access_token": tok},
+                                             timeout=60)).get("data", {}).get("scopes", [])
+                    out.append("✅ Instagram delete permission: yes" if "instagram_manage_contents" in sc else
+                               "⚠️ Instagram delete permission: missing (token needs updating)")
+                except Exception as e:
+                    out.append(f"ℹ️ Couldn't read token permissions: {str(e)[:120]}")
             else:
                 out.append("❌ Instagram: no Instagram professional account is linked to this Page")
         except Exception as e:

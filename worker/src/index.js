@@ -5,6 +5,7 @@
 // Stateless: edit prompts are sent as force-reply messages tagged with #job and #act; the reply carries them back.
 
 const PROMPTS = {
+  vtime: "🕒 When should this reel post? Send a time like 18:30 or 6:30 pm, or a date + time like 25 Dec 9:00 / tomorrow 9am (India time). Send 'default' for the normal time. Posts go out within 15 minutes of that time.",
   sch: "🤖 What should the AI change in the SCRIPT?",
   vcap: "📝 Send the NEW CAPTION exactly as it should be posted (no hashtags).",
   vtag: "#️⃣ Send the NEW HASHTAGS (space or comma separated, max 5).",
@@ -13,10 +14,10 @@ const PROMPTS = {
 const HELP = `📖 hashcovet reels — how to use
 
 ⏰ EVERY DAY (automatic)
-• 06:00 — today's script is sent here; approve it and the video is made (~10-15 min)
-• 12:30 PM — approved reel posts
-• Approve after 12:30 → posts right away
-• Reminders at 10:00, 11:30, 12:15, 3 PM, 6 PM if not approved
+• 06:00 — today's script is sent here; approve it and the video is made
+• 🎉 Celebration days (Christmas, Onam, Diwali…): an extra morning reel, script sent 3 days early
+• Approved reels post at their time (default 12:30 PM) — approve after that time → posts right away
+• Reminders at 10:00, 11:30, 12:15, 3 PM, 6 PM list EVERYTHING still waiting for you, with Open buttons
 
 💬 COMMANDS (tap ☰ Menu)
 /status — list of upcoming days and what's approved
@@ -32,6 +33,7 @@ Every step has two ways to change things: 🤖 tell the AI what to change, or �
 /remove — reply to someone's message with /remove to take it away
 /members — see who has access
 /aitest — check which AI writers are connected and working
+/time — see or change the default posting time for all reels (/time 18:30, /time celebration 08:00). 🕒 on a preview changes just that reel
 /posted — everything that went out, with links; tap Manage to retry or remove (one platform or all)
 /accounts — check which Instagram / Facebook / YouTube accounts reels will post to (posts nothing)
 Anyone else in the group cannot press buttons or use commands.
@@ -103,7 +105,8 @@ const CRON_ACTION = {
   "30 4 * * *": "remind",   // 10:00 IST
   "0 6 * * *": "remind",    // 11:30 IST
   "45 6 * * *": "remind",   // 12:15 IST
-  "0 7 * * *": "publish",   // 12:30 IST  posting slot
+  // posting is driven by the KV "next" time (any time the approver picks); 12:30 kept as a safety net
+  "0 7 * * *": "publish",   // 12:30 IST
   "30 9 * * *": "remind",   // 15:00 IST
   "30 12 * * *": "remind",  // 18:00 IST
   "30 14 * * *": "voicecheck", // 20:00 IST
@@ -116,6 +119,16 @@ export default {
     const key = `${d.getUTCMinutes()} ${d.getUTCHours()} * * *`;
     const action = CRON_ACTION[key];
     if (action) ctx.waitUntil(dispatch(env, action));
+    // Approved reels with their own posting time: the pipeline writes the next due time (UTC ISO) to KV.
+    if (env.SCHED && action !== "publish") {
+      ctx.waitUntil((async () => {
+        const next = await env.SCHED.get("next");
+        if (next && Date.parse(next) <= d.getTime() + 60000 && (await env.SCHED.get("fired")) !== next) {
+          await env.SCHED.put("fired", next);
+          await dispatch(env, "publish");
+        }
+      })());
+    }
   },
 
   async fetch(req, env) {
@@ -198,6 +211,9 @@ export default {
         await tg(env, "sendMessage", { chat_id: chat, text: `🗓 Planning ${n || 30} days ahead… scripts first, then each video's preview as it's ready.` });
       } else if (m.text.startsWith("/help") || m.text.startsWith("/start")) {
         await tg(env, "sendMessage", { chat_id: chat, text: HELP });
+      } else if (m.text.startsWith("/time")) {
+        await dispatch(env, "settime", "", m.text.replace("/time", "").trim());
+        await tg(env, "sendMessage", { chat_id: chat, text: "🕒 Updating the posting time…" });
       } else if (m.text.startsWith("/posted")) {
         await dispatch(env, "posted");
         await tg(env, "sendMessage", { chat_id: chat, text: "📋 Getting everything that was posted…" });

@@ -3,7 +3,7 @@ name: bot
 on:
   workflow_dispatch:
     inputs:
-      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck|unpubq|unpub|unpubno|rp*|rmq*|rm*|pman|posted", required: true, default: "new" }
+      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck|unpubq|unpub|unpubno|rp*|rmq*|rm*|pman|posted|open|vtime|settime|celebrations", required: true, default: "new" }
       job:    { description: "job id", required: false, default: "" }
       text:   { description: "instruction / new caption / hashtags / topic hint", required: false, default: "" }
 permissions:
@@ -34,6 +34,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GITHUB_MODELS_TOKEN: ${{ github.token }}
           SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}

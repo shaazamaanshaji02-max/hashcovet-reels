@@ -740,6 +740,73 @@ def act_health(force=False):
                 oks.append("✅ No crashed background jobs (24 h)")
     except Exception:
         pass
+    # 4b. GitHub free minutes (private repo: config publish.actions_minutes, default 2000/month) + storage
+    try:
+        import requests
+        repo, tok = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GH_TOKEN")
+        if repo and tok:
+            h = {"Authorization": f"Bearer {tok}"}
+            first = ist_now().date().replace(day=1).isoformat()
+            used = 0
+            for page in range(1, 6):
+                rr = requests.get(f"https://api.github.com/repos/{repo}/actions/runs", headers=h, timeout=30,
+                                  params={"created": f">={first}", "per_page": 100, "page": page}).json().get("workflow_runs", [])
+                for x in rr:
+                    if x.get("run_started_at") and x.get("updated_at"):
+                        a_ = datetime.datetime.fromisoformat(x["run_started_at"].rstrip("Z"))
+                        b_ = datetime.datetime.fromisoformat(x["updated_at"].rstrip("Z"))
+                        used += max(1, -(-int((b_ - a_).total_seconds()) // 60))
+                if len(rr) < 100:
+                    break
+            limit = int(CFG.get("publish", {}).get("actions_minutes", 2000))
+            day = ist_now().day; import calendar
+            days = calendar.monthrange(ist_now().year, ist_now().month)[1]
+            proj = int(used / max(day, 1) * days)
+            line = f"GitHub minutes this month: ~{used} of {limit} (on track for ~{proj})"
+            if used > 0.9 * limit:
+                probs.append(f"❌ {line}. When they run out, videos can't be made until the 1st → ask Claude about options")
+            elif proj > limit or used > 0.7 * limit:
+                probs.append(f"⚠️ {line}. Fewer re-makes/changes per video saves minutes")
+            else:
+                oks.append(f"✅ {line}")
+            size_mb = requests.get(f"https://api.github.com/repos/{repo}", headers=h, timeout=30).json().get("size", 0) / 1024
+            if size_mb > 800:
+                probs.append(f"⚠️ Storage {int(size_mb)} MB of ~1000 MB → ask Claude to clean old voice files")
+    except Exception as e:
+        print("minutes check failed:", e)
+    # 4c. bot clock heartbeat (the watchdog also checks this independently)
+    try:
+        acct, ctok = os.environ.get("CLOUDFLARE_ACCOUNT_ID"), os.environ.get("CLOUDFLARE_API_TOKEN")
+        if acct and ctok:
+            import requests
+            hh = {"Authorization": f"Bearer {ctok}"}
+            base = f"https://api.cloudflare.com/client/v4/accounts/{acct}/storage/kv/namespaces"
+            ns = next((n["id"] for n in requests.get(base, headers=hh, params={"per_page": 100}, timeout=30).json()
+                       .get("result", []) if n["title"] == "hashcovet-reels-sched"), None)
+            last = requests.get(f"{base}/{ns}/values/lastcron", headers=hh, timeout=30) if ns else None
+            if last is not None and last.status_code == 200:
+                age = (datetime.datetime.now(datetime.timezone.utc) -
+                       datetime.datetime.fromisoformat(last.text.replace("Z", "+00:00"))).total_seconds() / 60
+                (oks.append("✅ Bot clock ticking") if age < 45 else
+                 probs.append(f"❌ Bot clock stopped {int(age)} min ago (no reminders / timed posts)"))
+                if age >= 45: button("🔗 Redeploy the bot", f"https://github.com/{os.environ.get('GITHUB_REPOSITORY')}/actions/workflows/deploy-worker.yml")
+    except Exception as e:
+        print("clock check failed:", e)
+    # 4d. YouTube uploads that stayed private; videos whose file is about to expire (kept 30 days)
+    for j in all_jobs():
+        yt = (j.get("published") or {}).get("youtube") or {}
+        if yt.get("privacy") == "private" and not yt.get("removed"):
+            probs.append(f"⚠️ {nice_date(j['date'])}: YouTube Short is PRIVATE (Google limits new apps) → make it public "
+                         f"in YouTube Studio, and ask Claude to apply for Google's free YouTube review")
+            if yt.get("url"): button(f"🔗 Open {nice_date(j['date'])} on YouTube", yt["url"])
+        if j["status"] in ("video_review", "approved"):
+            made = next((e["at"] for e in reversed(j.get("history", [])) if e.get("kind") == "video_rendered"), None)
+            if made:
+                age_d = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(made.rstrip("Z"))).days
+                if age_d >= 25:
+                    probs.append(f"⚠️ {nice_date(j['date'])}: its video file expires in ~{30 - age_d} days — approve/post it "
+                                 f"or remake it")
+                    button(f"🔁 Remake video {nice_date(j['date'])}", f"a|remake|{j['id']}")
     # 5. sound files
     if not music_ok:
         probs.append("⚠️ Background music files missing (videos use basic music)"); button("🎵 Re-download music", "a|fetchmusic|")

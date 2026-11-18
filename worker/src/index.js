@@ -40,6 +40,10 @@ Each problem comes with a fix button:
 📋 See posted reels — a missed post was posted automatically
 🎵 Re-download music — music files missing
 🔗 See the latest crash — opens the error page (send it to Claude if it keeps happening)
+🔗 Open on YouTube — a Short stayed private (Google limits new apps); make it public in YouTube Studio
+🔁 Remake video — also offered when a waiting video file is about to expire (kept 30 days)
+It also warns about GitHub free minutes (2,000/month; each video ≈ 45 min) and storage.
+🐕 A separate watchdog checks twice a day that the bot itself is alive and linked to Telegram, fixes it if it can, and tells you.
 🩺 Check again — run the check once more
 /help — this guide
 
@@ -135,6 +139,7 @@ export default {
     const key = `${d.getUTCMinutes()} ${d.getUTCHours()} * * *`;
     const action = CRON_ACTION[key];
     if (action) ctx.waitUntil(dispatch(env, action));
+    if (env.SCHED) ctx.waitUntil(env.SCHED.put("lastcron", d.toISOString()));   // heartbeat for the watchdog
     // Approved reels with their own posting time: the pipeline writes the next due time (UTC ISO) to KV.
     if (env.SCHED && action !== "publish") {
       ctx.waitUntil((async () => {

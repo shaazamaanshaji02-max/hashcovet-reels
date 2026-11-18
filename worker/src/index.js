@@ -25,7 +25,7 @@ const HELP = `📖 hashcovet reels — how to use
 /status — upcoming reels with their posting time
 /new — one extra reel on the next free day (add a topic: /new lighting tips)
 /plan 30 — scripts for 30 days (max 62), each needs approval
-/time — see the default posting time · /time 18:30 changes it for ALL reels · /time celebration 08:00 for festival reels
+/time — tap buttons to change the default posting time (all reels or celebration reels). 🕒 on a reel = pick day → hour → minutes
 /posted — everything that went out, with links + ⚙️ Manage
 /accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
 /report — analytics (views, watch time, retention, age, gender, device, country): /report day · week · month (auto 9:30 PM; weekly Sun; monthly last day). Each reel also gets its own 📊 Video report (auto at 1 day and 7 days; or tap it under the reel / in /posted)
@@ -82,6 +82,70 @@ const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 48);
+}
+
+
+// ---- 🕒 tap-to-pick posting time (no typing). Callback data: p|<stage>|<job|ALL|FEST>|<value>
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function istNow() { return new Date(Date.now() + 5.5 * 3600 * 1000); }       // read with getUTC* = India time
+function h12(h) { return `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`; }
+function dayLabel(v) { const d = new Date(Date.UTC(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8))); return `${WD[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`; }
+function pickerView(stage, job, v) {
+  const who = job === "ALL" ? "ALL reels (default time)" : job === "FEST" ? "celebration reels (default time)" : `reel ${job}`;
+  const B = (text, data) => ({ text, callback_data: data });
+  const rows = [];
+  if (stage === "d") {
+    const t = istNow();
+    const days = [];
+    for (let i = 0; i < 15; i++) {
+      const d = new Date(t.getTime() + i * 86400000);
+      const val = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+      days.push(B(i === 0 ? "Today" : i === 1 ? "Tomorrow" : dayLabel(val), `p|h|${job}|${val}`));
+    }
+    for (let i = 0; i < days.length; i += 3) rows.push(days.slice(i, i + 3));
+    rows.push([B("↩️ Use the normal time", `p|def|${job}|`)], [B("✖️ Cancel", `p|x|${job}|`)]);
+    return { text: `🕒 Posting time for ${who}\n\nStep 1 of 3 — tap the DAY:`, rows };
+  }
+  if (stage === "h") {
+    const hrs = []; for (let h = 0; h < 24; h++) hrs.push(B(h12(h), `p|m|${job}|${v}${String(h).padStart(2, "0")}`));
+    for (let i = 0; i < hrs.length; i += 4) rows.push(hrs.slice(i, i + 4));
+    const back = job === "ALL" || job === "FEST" ? [B("✖️ Cancel", `p|x|${job}|`)] : [B("⬅️ Back", `p|d|${job}|`), B("✖️ Cancel", `p|x|${job}|`)];
+    rows.push(back);
+    return { text: `🕒 Posting time for ${who}${v ? `\nDay: ${dayLabel(v)}` : ""}\n\nStep ${v ? "2 of 3" : "1 of 2"} — tap the HOUR (India time):`, rows };
+  }
+  if (stage === "m") {
+    const hh = +v.slice(-2), day = v.slice(0, -2);
+    rows.push(["00", "15", "30", "45"].map(mm => B(`${hh % 12 || 12}:${mm} ${hh < 12 ? "AM" : "PM"}`, `p|ok|${job}|${v}${mm}`)));
+    rows.push([B("⬅️ Back", `p|h|${job}|${day}`), B("✖️ Cancel", `p|x|${job}|`)]);
+    return { text: `🕒 Posting time for ${who}${day ? `\nDay: ${dayLabel(day)}` : ""}\n\nLast step — tap the MINUTES:`, rows };
+  }
+  return null;
+}
+async function handlePicker(env, cq) {
+  const [, stage, job, v = ""] = cq.data.split("|");
+  const chat = cq.message.chat.id, mid = cq.message.message_id;
+  await tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
+  const edit = (text, rows) => tg(env, "editMessageText", { chat_id: chat, message_id: mid, text, reply_markup: { inline_keyboard: rows || [] } });
+  if (stage === "x") { await edit("✖️ Cancelled — posting time not changed."); return; }
+  if (stage === "def") { await dispatch(env, "vtime", job, "default"); await edit("⏳ Setting this reel back to the normal posting time…"); return; }
+  if (stage === "ok") {
+    const hm = `${v.slice(-4, -2)}:${v.slice(-2)}`, day = v.slice(0, -4);
+    if (job === "ALL" || job === "FEST") {
+      await dispatch(env, "settime", "", job === "FEST" ? `celebration ${hm}` : hm);
+      await edit(`⏳ Setting ${job === "FEST" ? "celebration reels" : "ALL reels"} to post at ${hm}…`);
+    } else {
+      const iso = `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)} ${hm}`;
+      await dispatch(env, "vtime", job, iso);
+      await edit(`⏳ Setting reel ${job} to post on ${dayLabel(day)} at ${hm}…`);
+    }
+    return;
+  }
+  const view = pickerView(stage, job, v);
+  if (view) await edit(view.text, view.rows);
+}
+async function sendPicker(env, chat, job) {
+  const view = job === "ALL" || job === "FEST" ? pickerView("h", job, "") : pickerView("d", job, "");
+  await tg(env, "sendMessage", { chat_id: chat, text: view.text, reply_markup: { inline_keyboard: view.rows } });
 }
 
 async function tg(env, method, body) {
@@ -219,8 +283,13 @@ export default {
     }
 
     try {
+      if (u.callback_query?.data?.startsWith("p|")) { await handlePicker(env, u.callback_query); return new Response("ok"); }
       if (u.callback_query) {
         const [, act, job] = u.callback_query.data.split("|");
+        if (act === "vtime") {
+          await tg(env, "answerCallbackQuery", { callback_query_id: u.callback_query.id });
+          await sendPicker(env, chat, job); return new Response("ok");
+        }
         await tg(env, "answerCallbackQuery", { callback_query_id: u.callback_query.id, text: ACK[act] || "OK" });
         if (PROMPTS[act]) {
           await tg(env, "sendMessage", { chat_id: chat, text: `${PROMPTS[act]}\n\n#job:${job} #act:${act}\n(reply to this message)`,
@@ -245,6 +314,12 @@ export default {
         await tg(env, "sendMessage", { chat_id: chat, text: `🗓 Planning ${n || 30} days ahead… scripts first, then each video's preview as it's ready.` });
       } else if (m.text.startsWith("/help") || m.text.startsWith("/start")) {
         await tg(env, "sendMessage", { chat_id: chat, text: HELP });
+      } else if (/^\/time\s*(celebration|festival)?\s*$/i.test(m.text) && m.text.trim() !== "/time") {
+        await sendPicker(env, chat, "FEST");
+      } else if (m.text.trim() === "/time") {
+        await dispatch(env, "settime", "", "");
+        await tg(env, "sendMessage", { chat_id: chat, text: "🕒 Change the default posting time — tap below (no typing needed). To change ONE reel, use the 🕒 Posting time button on that reel.",
+          reply_markup: { inline_keyboard: [[{ text: "🕒 For ALL reels", callback_data: "p|h|ALL|" }], [{ text: "🎉 For celebration reels", callback_data: "p|h|FEST|" }]] } });
       } else if (m.text.startsWith("/time")) {
         await dispatch(env, "settime", "", m.text.replace("/time", "").trim());
         await tg(env, "sendMessage", { chat_id: chat, text: "🕒 Updating the posting time…" });

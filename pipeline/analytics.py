@@ -108,6 +108,112 @@ def accounts():
     return out
 
 
+def audience(start, end):
+    """Who watches: age, gender, country/city, device, where views came from, and IG/YT account-level totals.
+    Each part appears only when its permission is granted (instagram_manage_insights / yt-analytics.readonly)."""
+    out = {}
+    tok = os.environ.get("META_PAGE_TOKEN")
+    if tok:
+        _, ig = pub.meta_ids()
+        if ig:
+            demo = {}
+            for bd in ("age", "gender", "city", "country"):
+                d = _get(f"{pub.GRAPH}/{ig}/insights", params={"metric": "follower_demographics", "period": "lifetime",
+                         "metric_type": "total_value", "breakdown": bd, "access_token": tok})
+                try:
+                    res = d["data"][0]["total_value"]["breakdowns"][0]["results"]
+                    demo[bd] = sorted(((r["dimension_values"][0], r["value"]) for r in res), key=lambda x: -x[1])[:6]
+                except Exception:
+                    pass
+            if demo:
+                out["ig_followers"] = demo
+            acc = _get(f"{pub.GRAPH}/{ig}/insights", params={
+                "metric": "reach,views,profile_views,accounts_engaged,website_clicks,follows_and_unfollows",
+                "period": "day", "metric_type": "total_value", "access_token": tok,
+                "since": int(datetime.datetime.combine(start, datetime.time()).timestamp()),
+                "until": int(datetime.datetime.combine(end + datetime.timedelta(days=1), datetime.time()).timestamp())})
+            tv = {x["name"]: (x.get("total_value") or {}).get("value") for x in acc.get("data", [])}
+            if any(v is not None for v in tv.values()):
+                out["ig_account"] = tv
+    if os.environ.get("YT_REFRESH_TOKEN"):
+        h = {"Authorization": f"Bearer {pub._yt_token()}"}
+        base = {"ids": "channel==MINE", "startDate": start.isoformat(), "endDate": end.isoformat()}
+
+        def yt(**kw):
+            r = _get("https://youtubeanalytics.googleapis.com/v2/reports", headers=h, params={**base, **kw})
+            return None if "_error" in r else r.get("rows") or []
+        tot = yt(metrics="views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost,likes,shares,comments")
+        if tot is not None:
+            if tot:
+                k = ["views", "watch_min", "avg_view_s", "avg_pct", "subs_gained", "subs_lost", "likes", "shares", "comments"]
+                out["yt_channel"] = dict(zip(k, tot[0]))
+            ag = yt(dimensions="ageGroup,gender", metrics="viewerPercentage")
+            if ag:
+                ages, gen = {}, {}
+                for a, g, v in ag:
+                    ages[a.replace("age", "")] = ages.get(a.replace("age", ""), 0) + v
+                    gen[g] = gen.get(g, 0) + v
+                out["yt_age"] = sorted(ages.items(), key=lambda x: -x[1])
+                out["yt_gender"] = sorted(gen.items(), key=lambda x: -x[1])
+            for key, dim in (("yt_device", "deviceType"), ("yt_country", "country"),
+                             ("yt_traffic", "insightTrafficSourceType"), ("yt_os", "operatingSystem")):
+                rows = yt(dimensions=dim, metrics="views,estimatedMinutesWatched", sort="-views", maxResults=6)
+                if rows:
+                    out[key] = [(r[0], r[1], r[2]) for r in rows]
+    return out
+
+
+def _share(pairs, total=None, unit="%"):
+    total = total or sum(v for _, v in pairs) or 1
+    def nm(k):
+        k = str(k)
+        return k if (len(k) == 2 and k.isupper()) else {"IOS": "iOS"}.get(k, k.replace("_", " ").title())
+    return " · ".join(f"{nm(k)} {v / total * 100:.0f}%" for k, v in pairs[:5]) if unit == "%" else ""
+
+
+def audience_lines(a):
+    L = []
+    if not a:
+        return L
+    L.append("")
+    L.append("<b>Audience & watching</b>")
+    if a.get("yt_channel"):
+        c = a["yt_channel"]
+        L.append(f"▶️ YouTube: {_fmt(c['views'])} views · {_fmt(round(c['watch_min']))} min watched · "
+                 f"avg {c['avg_view_s']:.0f}s per view ({c['avg_pct']:.0f}% of the video) · "
+                 f"subscribers +{c['subs_gained']}/-{c['subs_lost']}")
+    if a.get("ig_account"):
+        t = a["ig_account"]
+        bits = [f"{lab} {_fmt(t[k])}" for k, lab in (("reach", "reach"), ("views", "views"), ("profile_views", "profile visits"),
+                ("accounts_engaged", "accounts engaged"), ("website_clicks", "website clicks"), ("follows_and_unfollows", "net follows"))
+                if t.get(k) is not None]
+        if bits:
+            L.append("📸 Instagram account: " + " · ".join(bits))
+    if a.get("yt_age"):
+        L.append("🎂 Age (YouTube viewers): " + " · ".join(f"{k} {v:.0f}%" for k, v in a["yt_age"][:5]))
+    if a.get("yt_gender"):
+        L.append("⚧ Gender (YouTube viewers): " + " · ".join(f"{k} {v:.0f}%" for k, v in a["yt_gender"]))
+    f = a.get("ig_followers") or {}
+    if f.get("age"):
+        L.append("🎂 Age (Instagram followers): " + _share(f["age"]))
+    if f.get("gender"):
+        L.append("⚧ Gender (Instagram followers): " + _share([({"F": "women", "M": "men", "U": "unknown"}.get(k, k), v) for k, v in f["gender"]]))
+    if f.get("city"):
+        L.append("📍 Top cities (Instagram followers): " + _share(f["city"]))
+    if f.get("country") or a.get("yt_country"):
+        if f.get("country"):
+            L.append("🌍 Countries (Instagram followers): " + _share(f["country"]))
+        if a.get("yt_country"):
+            L.append("🌍 Countries (YouTube views): " + _share([(r[0], r[1]) for r in a["yt_country"]]))
+    if a.get("yt_device"):
+        L.append("📱 Devices (YouTube): " + _share([(r[0], r[1]) for r in a["yt_device"]]))
+    if a.get("yt_os"):
+        L.append("💻 Systems (YouTube): " + _share([(r[0], r[1]) for r in a["yt_os"]]))
+    if a.get("yt_traffic"):
+        L.append("🧭 Where YouTube views came from: " + _share([(r[0], r[1]) for r in a["yt_traffic"]]))
+    return L
+
+
 def collect():
     """Today's snapshot of every live post + followers. Saved once per day (later runs overwrite the same day)."""
     snap = {"at": ist_now().isoformat(timespec="minutes"), "followers": {}, "reels": {}, "missing": []}
@@ -273,13 +379,20 @@ def build(period="day"):
     if sum(pv.values()):
         best = max(pv, key=pv.get)
         L.append(f"🏆 Strongest platform this period: <b>{pub.NAMES[best]}</b> ({_fmt(pv[best])} views)")
+    try:
+        aud = audience(start, today)
+    except Exception as e:
+        print("audience failed:", e); aud = {}
+    L += audience_lines(aud)
+    if not aud.get("ig_followers") and "instagram_insights" not in snap["missing"] and os.environ.get("META_PAGE_TOKEN"):
+        pass
     if snap["missing"]:
         names = {"instagram_insights": "Instagram views/reach/saves/watch time", "facebook_insights": "Facebook plays/reach",
                  "youtube_analytics": "YouTube watch time/% watched"}
         L.append("\nℹ️ Not available yet (permission not granted): " + ", ".join(names.get(x, x) for x in snap["missing"]))
     data = {"period": period, "posted": len(in_period), "followers": snap["followers"],
             "reels": [{"date": jobs[i]["date"], **feats[i], **{p: m for p, m in reels[i].items()}} for i in ranked],
-            "groups": insights_data, "change_requests": changes}
+            "groups": insights_data, "change_requests": changes, "audience": aud}
     chart = _chart(ranked, reels, jobs, period) if period != "day" and len(ranked) >= 2 else None
     return "\n".join(L), chart, data
 

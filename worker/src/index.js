@@ -31,6 +31,7 @@ Every step has two ways to change things: 🤖 tell the AI what to change, or �
 /remove — reply to someone's message with /remove to take it away
 /members — see who has access
 /aitest — check which AI writers are connected and working
+/accounts — check which Instagram / Facebook / YouTube accounts reels will post to (posts nothing)
 Anyone else in the group cannot press buttons or use commands.
 
 🔘 BUTTONS UNDER A SCRIPT
@@ -50,7 +51,7 @@ Anyone else in the group cannot press buttons or use commands.
 🧠 It learns: every change you ask for or text you rewrite becomes a rule, so you won't need to ask again.
 ✍️ To edit: tap a button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));
@@ -173,6 +174,9 @@ export default {
         await tg(env, "sendMessage", { chat_id: chat, text: `🗓 Planning ${n || 30} days ahead… scripts first, then each video's preview as it's ready.` });
       } else if (m.text.startsWith("/help") || m.text.startsWith("/start")) {
         await tg(env, "sendMessage", { chat_id: chat, text: HELP });
+      } else if (m.text.startsWith("/accounts")) {
+        await dispatch(env, "connectcheck");
+        await tg(env, "sendMessage", { chat_id: chat, text: "🔌 Checking connected accounts… (posts nothing)" });
       } else if (m.text.startsWith("/aitest")) {
         await dispatch(env, "aitest");
         await tg(env, "sendMessage", { chat_id: chat, text: "🧪 Checking every AI writer… (~1 min)" });

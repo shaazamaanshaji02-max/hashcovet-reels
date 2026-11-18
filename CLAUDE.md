@@ -43,10 +43,15 @@ Statuses: script_review → producing → video_review → approved → ready_to
    Every change → new preview. Only approved jobs move on. Approved = `status: approved` in `jobs/<id>/job.json`.
 6. **Learning**: every AI change and every direct caption/hashtag edit is distilled into a rule in
    `memory/learnings.json` (`pipeline/common.py:add_learning`), injected into every prompt via `prompts/system.md`.
-7. **Publishing targets (owner): Instagram Reels + Facebook Reels + YouTube Shorts** — same approved video, caption, hashtags.
-   **Not built yet** (owner wants it after the Telegram flow is proven). `main.py:publish()`
-   currently marks `ready_to_post` and notifies. To build: store the approved mp4 publicly (e.g. Cloudflare R2), use
-   the Instagram Graph API Reels publishing with caption + hashtags, add `pipeline/publish.py`, call it from `publish()`.
+7. **Publishing (built 2026-11-18): Instagram Reels + Facebook Reels + YouTube Shorts** — same approved video, caption,
+   hashtags. `main.py:publish()` → `pipeline/publish.py:publish_all()`: gets the exact approved mp4 (produce artifact
+   `reel-<id>` → `<id>_v<version>.mp4`, else the Telegram copy), then resumable uploads straight to each platform (no public
+   hosting needed). Each platform independent; results in `job.published`; status `posting` → `published` or
+   `post_failed` (Telegram shows a 🔁 Retry button = action `repost`, which re-posts only the failed ones).
+   A platform without its secrets is skipped; with none connected the old `ready_to_post` behaviour remains.
+   `/accounts` in Telegram (action `connectcheck`) shows which Page / IG handle / YT channel will be used (posts nothing).
+   Owner: post to **HASHCOVET's own accounts** (not @executionwithshaaz). YouTube uploads are flagged
+   `containsSyntheticMedia` (AI voice). `config.json publish` = platforms list, Graph API version, YouTube privacy.
 
 ## Where things live
 | What | Where |
@@ -60,6 +65,9 @@ Statuses: script_review → producing → video_review → approved → ready_to
 | Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
 | Videos | GitHub Actions artifacts of `produce` runs (30 days) + Telegram |
+| Posting to IG / FB / YouTube | `pipeline/publish.py` (+ `config.json publish`) |
+| Background music (CC0, Openverse) | `assets/music/*.mp3` + `credits.json`; refresh: Actions → fetch-music (`pipeline/fetch_music.py`) |
+| Sound effects (earshot bank) | `assets/sfx/*.wav` (+ README with ids); placed by `render.py:make_real_bed` |
 
 ## Brand design (must not drift)
 Pure black bg; faint grey grid 58×46.5px (lines rgba(255,255,255,.1)); magenta glow #811A76 only top-right and
@@ -76,6 +84,8 @@ inside content only a small corner logo + "hashcovet.com" watermark; end card ke
 | Hugging Face | logged in with shaazamaanshaji02@gmail.com | Arjun voice conversion on free GPU (Seed-VC) | `HF_TOKEN` → huggingface.co/settings/tokens, type **Read** |
 | Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
 | Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram bridge + exact-time crons) | `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers") + `CLOUDFLARE_ACCOUNT_ID`, stored in GitHub; the Worker is deployed by `.github/workflows/deploy-worker.yml`. Optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` for Workers AI backup writer |
+| Meta (Facebook + Instagram) | HASHCOVET Facebook Page with the HASHCOVET Instagram professional account linked to it | posting Reels to IG + FB | `META_PAGE_TOKEN` = never-expiring Page access token (Meta app with instagram_content_publish, instagram_basic, pages_show_list, pages_read_engagement, pages_manage_posts, business_management; Graph API Explorer → long-lived user token → `me/accounts` → the Page's access_token). Optional `FB_PAGE_ID`, `IG_USER_ID` (auto-detected) |
+| Google Cloud / YouTube | Google login that owns the HASHCOVET YouTube channel | posting Shorts | `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (OAuth client, YouTube Data API v3 enabled), `YT_REFRESH_TOKEN` (OAuth Playground, scope youtube.upload + youtube.readonly). Unverified Google projects can only upload PRIVATE videos until the free YouTube API audit is passed |
 | Groq / OpenRouter / SambaNova / NVIDIA (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY` (console.groq.com/keys), `OPENROUTER_API_KEY` (openrouter.ai/settings/keys), `SAMBANOVA_API_KEY` (cloud.sambanova.ai/apis), `NVIDIA_API_KEY` (build.nvidia.com → API key); HF writer reuses `HF_TOKEN` (needs "Make calls to Inference Providers"); Cloudflare writer needs `CF_API_TOKEN` with Workers AI permission |
 
 Where each secret is stored:
@@ -107,18 +117,11 @@ Never ask the owner to paste secrets into chat; have them paste into the GitHub/
 (`CHROME_PATH=/usr/bin/google-chrome` if Playwright's Chromium isn't installed.) Dry-run bot logic with `NO_GIT=1`
 and no Telegram token → messages print instead of sending.
 
-## NEXT TASK (owner approved 2026-11-17, not built yet)
-Replace the synth music bed with real, free, unlimited audio that runs WITHOUT Claude:
-1. Sound effects: open-source **earshot** (github.com/Leonxlnx/earshot, CPU, 201-sound bank rendered by id, no network).
-   Install in produce.yml (pip from git), render whoosh at each tip start, ding/chime at each fix, click at "save",
-   hit at CTA, using the timeline from `render.build_timeline`; mix in `render.make_bed`/`mix`.
-2. Background music: CC0-only tracks from **Openverse** (api.openverse.org/v1/audio/?license=cc0&category=music, anonymous).
-   Fetch ~6 calm/corporate tracks ONCE in a new manual workflow (fetch-music.yml), commit to `assets/music/` with a
-   credits.json (title, creator, url, license); pick one per reel (seeded by job id), loop/trim to length, fade.
-3. Keep Arjun's voice on top (existing sidechain ducking). Fallback to current synth bed if assets missing.
-Do NOT use ElevenLabs or any paid/limited SFX service (owner: free + no limits). Skills only help when Claude runs.
-
 ## Status log (update when you change something)
+- 2026-11-18: Real audio (owner): CC0 music from Openverse (8 tracks fetched, joke track removed; one per reel, seeded by
+  the spec; looped/trimmed, faded) + earshot SFX pre-rendered into assets/sfx (whoosh per tip, knock on mistake, ding on
+  fix, click on save, riser + hit into the end card). Falls back to the old synth bed if assets are missing.
+- 2026-11-18: Auto-publishing built (publish.py, repost, /accounts). Waiting for owner to connect HASHCOVET Meta + YouTube secrets.
 - 2026-11-16: Scheduling added (06:00 daily, 12:30 publish slot, reminders, /plan, /status) via Worker crons.
 - 2026-11-16: Gemini model auto-pick + keys never logged. Bot @hashcovet_reels_bot (name "hashcovet reels").
 - 2026-11-17: ARJUN-ONLY rule (owner): config voice.arjun_only=true → if every clone method fails, produce does NOT render; job → `voice_pending`, retried at 06:00/08:00/09:00/10:00/11:30/12:15/15:00/18:00/20:00 IST (`voicecheck`, also run by daily/remind). Owner: quality over speed — local Seed-VC 40 diffusion steps, 75-min limit, 2 tries; produce job limit 240 min. Order (since 2026-11-17 evening) local_cpu FIRST (no quota) → hf_gpu → hf_cpu_spaces. Local Seed-VC on the GitHub runner works free (~6-7 min CPU; torchaudio.save patched to soundfile; model + repo cached via actions/cache key seedvc-v1). `voice-test.yml` = manual check.

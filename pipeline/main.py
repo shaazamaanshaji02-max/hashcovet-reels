@@ -176,16 +176,40 @@ def new_job(date, hint=None, batch=False):
 
 
 def publish(job, reason=""):
-    """Instagram is not connected yet: mark ready and tell the approver. Replace with real posting later."""
+    """Post the approved reel to every connected platform (pipeline/publish.py).
+    Nothing connected yet -> mark ready_to_post and tell the approver (old behaviour)."""
+    import publish as pub
     if job["status"] in ("published", "ready_to_post"):
         return
-    if os.environ.get("IG_ACCESS_TOKEN"):
-        raise NotImplementedError("Instagram publishing not built yet")  # TODO: pipeline/publish.py
-    job["status"] = "ready_to_post"
-    log_event(job, "publish_slot", reason)
+    if not pub.enabled():
+        job["status"] = "ready_to_post"
+        log_event(job, "publish_slot", reason)
+        save_job(job)
+        previews.notify(f"📤 <b>{nice_date(job['date'])}</b> reel is approved and its posting time has come.\n"
+                        f"No social account is connected yet — the video above is ready to post manually. {reason}")
+        return
+    job["status"] = "posting"; save_job(job); git_commit(f"posting {job['id']}")
+    pub.publish_all(job)
+    done = job.get("published", {})
+    ok = [p for p in pub.enabled() if (done.get(p) or {}).get("id")]
+    bad = [p for p in pub.enabled() if p not in ok]
+    job["status"] = "published" if not bad else "post_failed"
+    log_event(job, "published" if not bad else "post_failed", {p: done.get(p) for p in pub.enabled()})
     save_job(job)
-    previews.notify(f"📤 <b>{nice_date(job['date'])}</b> reel is approved and its posting time has come.\n"
-                    f"Instagram isn't connected yet — the video above is ready to post manually. {reason}")
+    lines = []
+    for p in ok:
+        r = done[p]; extra = " (private — see note)" if r.get("privacy") == "private" else ""
+        lines.append(f"✅ {pub.NAMES[p]}: {previews.esc(r.get('url') or 'posted')}{extra}")
+    for p in bad:
+        lines.append(f"❌ {pub.NAMES[p]}: <code>{previews.esc((done.get(p) or {}).get('error', 'failed'))[:300]}</code>")
+    head = f"🟢 <b>{nice_date(job['date'])} posted.</b>" if not bad else f"⚠️ <b>{nice_date(job['date'])}: some posts failed.</b>"
+    text = head + (f" {previews.esc(reason)}" if reason else "") + "\n" + "\n".join(lines)
+    if bad:
+        from common import kb, send_text
+        send_text(text + "\n\nThe ones that worked won't be posted twice.",
+                  kb([[("🔁 Retry failed posts", f"a|repost|{job['id']}")]]))
+    else:
+        previews.notify(text)
 
 
 # ---------------- scheduled ----------------
@@ -225,7 +249,7 @@ def act_remind():
     except FileNotFoundError:
         previews.notify("⏰ No reel exists for today yet. Send /new to make one now.")
         return
-    if job["status"] in ("approved", "ready_to_post", "published"):
+    if job["status"] in ("approved", "ready_to_post", "published", "posting", "post_failed"):
         return
     late = ist_now() >= slot(today)
     when = "it will post as soon as you approve" if late else "approve before 12:30 PM to post on time"
@@ -281,7 +305,7 @@ def act_status():
         previews.notify("No upcoming reels. Send /new or /plan 30.")
         return
     icon = {"script_review": "📝", "producing": "⚙️", "voice_pending": "🎙", "video_review": "👀", "approved": "✅",
-            "ready_to_post": "📤", "published": "🟢"}
+            "ready_to_post": "📤", "published": "🟢", "posting": "📡", "post_failed": "⚠️"}
     lines = [f"{icon.get(j['status'], '•')} {nice_date(j['date'])} — {j['status'].replace('_', ' ')} — "
              f"{j['spec']['topic'][:40]}" for j in rows]
     previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
@@ -350,7 +374,7 @@ def act(action, jid, text):
         previews.notify(f"⚠️ That reel ({previews.esc(jid)}) no longer exists — it was an old test. Send /status to see current reels.")
         return
     if action == "vundo":
-        if job["status"] in ("ready_to_post", "published", "producing"):
+        if job["status"] in ("ready_to_post", "published", "producing", "posting", "post_failed"):
             previews.notify(f"⚠️ Can't undo now — {nice_date(job['date'])} is {job['status'].replace('_', ' ')}.")
             return
         act_undo(job)
@@ -358,7 +382,14 @@ def act(action, jid, text):
     if action in ("keepall", "keepno"):
         act_keep(job, action == "keepall")
         return
-    if job["status"] in ("ready_to_post", "published") or (job["status"] == "approved" and action != "vok"):
+    if action == "repost":
+        if job["status"] == "post_failed":
+            job["status"] = "approved"; publish(job, "Retry.")
+            save_job(job); git_commit(f"repost {jid}")
+        else:
+            previews.notify(f"ℹ️ {nice_date(job['date'])} is {job['status'].replace('_', ' ')} — nothing to retry.")
+        return
+    if job["status"] in ("ready_to_post", "published", "posting", "post_failed") or (job["status"] == "approved" and action != "vok"):
         previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
         return
 
@@ -487,6 +518,9 @@ if __name__ == "__main__":
         elif a == "access": act_access(t)
         elif a == "aitest": act_aitest()
         elif a == "voicecheck": act_voicecheck()
+        elif a == "connectcheck":
+            import publish as pub
+            previews.notify("🔌 <b>Posting accounts</b>\n" + "\n".join(previews.esc(x) for x in pub.check_accounts()))
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

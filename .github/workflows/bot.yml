@@ -3,7 +3,7 @@ name: bot
 on:
   workflow_dispatch:
     inputs:
-      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch", required: true, default: "new" }
+      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck", required: true, default: "new" }
       job:    { description: "job id", required: false, default: "" }
       text:   { description: "instruction / new caption / hashtags / topic hint", required: false, default: "" }
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,6 +38,12 @@ jobs:
           SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           ACTION: ${{ github.event.inputs.action }}
           JOB: ${{ github.event.inputs.job }}
           TEXT: ${{ github.event.inputs.text }}

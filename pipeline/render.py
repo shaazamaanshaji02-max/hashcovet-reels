@@ -5,6 +5,7 @@ CLI (used for local tests):  python pipeline/render.py --spec spec.json --lines 
 DIR must contain hook.wav m0.wav f0.wav m1.wav f1.wav m2.wav f2.wav save.wav cta.wav
 """
 import argparse
+import hashlib
 import asyncio
 import json
 import pathlib
@@ -103,6 +104,71 @@ def make_bed(tl, path, seed=7):
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(np.stack([d, d], 1).tobytes())
 
 
+MUSIC_DIR = ROOT / "assets" / "music"
+SFX_DIR = ROOT / "assets" / "sfx"   # rendered once from the open-source earshot bank (see assets/sfx/README.md)
+
+
+def _decode(path, ch):
+    tmp = tempfile.mktemp(suffix=".wav")
+    run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(path), "-ac", str(ch), "-ar", str(SR), "-sample_fmt", "s16", tmp])
+    with wave.open(tmp) as w:
+        x = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
+    return x.reshape(-1, ch)
+
+
+def music_tracks():
+    try:
+        credits = json.loads((MUSIC_DIR / "credits.json").read_text())
+        return [c for c in credits if (MUSIC_DIR / c["file"]).exists()]
+    except Exception:
+        return []
+
+
+def make_real_bed(tl, path, seed):
+    """CC0 music from Openverse (assets/music) + earshot sound effects at the scene changes.
+    Returns the credit of the track used, or None if the assets are missing (caller falls back to the synth bed)."""
+    tracks = music_tracks()
+    need = ["whoosh", "mistake", "fix", "save", "riser", "cta"]
+    if not tracks or not all((SFX_DIR / f"{k}.wav").exists() for k in need):
+        return None
+    rng = np.random.default_rng(seed)
+    tr = tracks[int(rng.integers(len(tracks)))]
+    D = tl["D"]; n = int(SR * D)
+    m = _decode(MUSIC_DIR / tr["file"], 2)
+    if len(m) < n:  # loop short tracks with a small crossfade
+        xf = int(.25 * SR); parts = [m]
+        while sum(len(p) for p in parts) < n + xf:
+            a = parts[-1]; b = m.copy(); r = np.linspace(0, 1, xf)[:, None]
+            a[-xf:] = a[-xf:] * (1 - r) + b[:xf] * r; parts[-1] = a; parts.append(b[xf:])
+        m = np.concatenate(parts)
+    off = int(rng.integers(0, max(1, len(m) - n))) if len(m) > n + SR else 0
+    out = m[off:off + n].astype(np.float64).copy()
+    if len(out) < n: out = np.pad(out, ((0, n - len(out)), (0, 0)))
+    t = np.arange(n) / SR
+    out *= (np.minimum(1, t / .6) * np.clip((D - t) / 1.5, 0, 1))[:, None]
+    out = out / (np.max(np.abs(out)) + 1e-9) * .5          # music sits under the effects + voice
+
+    sfx = {k: _decode(SFX_DIR / f"{k}.wav", 1)[:, 0] for k in need}
+
+    def add(k, at, g):
+        y = sfx[k]; i = int(at * SR)
+        if i < 0: y = y[-i:]; i = 0
+        j = min(n, i + len(y))
+        if i < n: out[i:j] += (y[:j - i] * g)[:, None]
+
+    for x in tl["tips"]:
+        add("whoosh", x["s"] - .13, .55)       # whoosh peak lands on the tip card
+        add("mistake", x["s"] + .6, .5)        # soft knock on the mistake
+        add("fix", x["fx"] + .05, .45)         # ding on the fix
+    add("whoosh", tl["save"]["s"] - .13, .45); add("save", tl["save"]["s"] + .35, .6)
+    add("riser", tl["cta"]["s"] - .39, .5); add("cta", tl["cta"]["s"] - .18 + .18, .7)
+    out = np.tanh(out * 1.1); out = out / np.max(np.abs(out)) * .89
+    d = (out * 32767).astype(np.int16)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(d.tobytes())
+    return tr
+
+
 def mix(voice, tl, bed_path, out_path):
     """voice: key -> float array. Lay lines on the timeline, compress, duck the music under the voice."""
     n = int(SR * tl["D"]); vo = np.zeros(n)
@@ -198,7 +264,14 @@ def render(spec, line_paths, out, fps=30):
     voice = {k: load_trimmed(line_paths[k]) for k in KEYS}
     tl = build_timeline({k: len(v) / SR for k, v in voice.items()})
     tmp = pathlib.Path(tempfile.mkdtemp())
-    make_bed(tl, tmp / "bed.wav")
+    seed = int(hashlib.md5(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()[:8], 16)
+    try:
+        track = make_real_bed(tl, tmp / "bed.wav", seed)
+    except Exception as e:
+        print("real music bed failed, using synth bed:", e); track = None
+    if not track:
+        make_bed(tl, tmp / "bed.wav")
+    tl["music"] = track
     mix(voice, tl, tmp / "bed.wav", tmp / "mix.wav")
     asyncio.run(_frames(spec, tl, tmp / "mix.wav", out, fps))
     return tl

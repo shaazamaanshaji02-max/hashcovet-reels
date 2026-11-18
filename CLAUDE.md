@@ -12,7 +12,7 @@ words, and ask them only for things only they can do (pasting secrets, approving
      ask the owner to add their other account `Shaazamaan` as a Write collaborator, then use add_repo)
    - bot buttons/webhook/clock issues → Cloudflare (shaazamaanshaji02@gmail.com) + Telegram
    - posting to Instagram/Facebook → Facebook profile that admins Page HASHCOVET (+ developers.facebook.com)
-   - posting to YouTube → Google account **hashcovet@gmail.com** (channel #Covet)
+   - posting to YouTube → Google account **hashcovetsales@gmail.com** (channel #Covet; Cloud project `hashcovet-reels-yt`)
    - voice issues → Hugging Face; script-writer issues → Google AI Studio
 3. Keys are pasted by the owner into GitHub/Cloudflare secret fields, never into chat. Owner is not technical: open the
    exact page/field in the browser and point to it; he does copy-paste. Anything that accepts terms or clicks a final
@@ -101,7 +101,7 @@ logo = "#" on navy→crimson gradient circle + "covet" Poppins Bold + "Innovate 
 Reel rules from the owner: branded thumbnail (logo, social icons, web pill, arrow) for the **first 1 second only**;
 inside content only a small corner logo + "hashcovet.com" watermark; end card keeps full branding.
 
-## Accounts used (owner login shaazamaanshaji02@gmail.com, EXCEPT YouTube/Google Cloud = hashcovet@gmail.com)
+## Accounts used (owner login shaazamaanshaji02@gmail.com, EXCEPT YouTube/Google Cloud = hashcovetsales@gmail.com)
 | Service | Account | Used for | Secret(s) it provides |
 |---|---|---|---|
 | GitHub | `shaazamaanshaji02-max` (repo `shaazamaanshaji02-max/hashcovet-reels`, private) | code, daily schedule, voice + video rendering (Actions) | `GITHUB_TOKEN` for the Worker: fine-grained PAT → github.com/settings/personal-access-tokens, repo hashcovet-reels only, Actions: Read & write |
@@ -110,7 +110,7 @@ inside content only a small corner logo + "hashcovet.com" watermark; end card ke
 | Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
 | Cloudflare | shaazamaanshaji02@gmail.com | Worker `hashcovet-reels-bot` (Telegram bridge + exact-time crons) | `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers") + `CLOUDFLARE_ACCOUNT_ID`, stored in GitHub; the Worker is deployed by `.github/workflows/deploy-worker.yml`. Optional `CF_ACCOUNT_ID` + `CF_API_TOKEN` for Workers AI backup writer |
 | Meta (Facebook + Instagram) | Facebook login of the owner (admin of Page HASHCOVET; IG @hashcovet linked). Meta app 'Hashcovet Reels Publisher' id 29116526041334049 | posting Reels to IG + FB | `META_PAGE_TOKEN` = never-expiring Page access token (Meta app with instagram_content_publish, instagram_basic, instagram_manage_contents, instagram_manage_insights, read_insights, pages_show_list, pages_read_engagement, pages_manage_posts, business_management; Graph API Explorer → long-lived user token → `me/accounts` → the Page's access_token). Optional `FB_PAGE_ID`, `IG_USER_ID` (auto-detected) |
-| Google Cloud / YouTube | hashcovet@gmail.com (channel #Covet; Cloud project 'Hashcovet Reels') | posting Shorts | `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (OAuth client, YouTube Data API v3 enabled), `YT_REFRESH_TOKEN` (OAuth Playground, scopes youtube.upload + youtube + yt-analytics.readonly). Owner rule: use HASHCOVET's OWN Google account for everything (its own Cloud project + OAuth client) — never the @executionwithshaaz setup. publish.py flips the video to public after upload; if Google keeps new-project uploads private, the Telegram result says 'private' → apply for the free YouTube API audit |
+| Google Cloud / YouTube | **hashcovetsales@gmail.com** (channel #Covet; Cloud project 'Hashcovet Reels YT' id `hashcovet-reels-yt`, In production, YouTube Data + Analytics APIs enabled; browser authuser=2). OLD (unused since 18 Nov): hashcovet@gmail.com / project zippy-cab-515105-r8 | posting Shorts | `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (OAuth client, YouTube Data API v3 enabled), `YT_REFRESH_TOKEN` (OAuth Playground, scopes youtube.upload + youtube + yt-analytics.readonly). Owner rule: use HASHCOVET's OWN Google account for everything (its own Cloud project + OAuth client) — never the @executionwithshaaz setup. publish.py flips the video to public after upload; if Google keeps new-project uploads private, the Telegram result says 'private' → apply for the free YouTube API audit |
 | Groq / OpenRouter / SambaNova / NVIDIA (optional) | shaazamaanshaji02@gmail.com | backup script writers | `GROQ_API_KEY` (console.groq.com/keys), `OPENROUTER_API_KEY` (openrouter.ai/settings/keys), `SAMBANOVA_API_KEY` (cloud.sambanova.ai/apis), `NVIDIA_API_KEY` (build.nvidia.com → API key); HF writer reuses `HF_TOKEN` (needs "Make calls to Inference Providers"); Cloudflare writer needs `CF_API_TOKEN` with Workers AI permission |
 
 Where each secret is stored:
@@ -142,8 +142,8 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
   ⓘ → Open in Access Token Tool → Extend → with the long-lived token GET me/accounts → HASHCOVET's access_token
   (show it in an in-page copy box via JS; never print it) → owner updates secret META_PAGE_TOKEN. Then /accounts.
 - YouTube error / "no channel": OAuth Playground (gear → own credentials = YT_CLIENT_ID/SECRET, scopes youtube.upload +
-  youtube + yt-analytics.readonly) → owner signs in as hashcovet@gmail.com → Exchange → owner saves Refresh token as YT_REFRESH_TOKEN.
-  Google Cloud project zippy-cab-515105-r8 ("Hashcovet Reels"), app In production.
+  youtube + yt-analytics.readonly) → owner signs in as hashcovetsales@gmail.com → Exchange → owner saves Refresh token as YT_REFRESH_TOKEN.
+  Google Cloud project hashcovet-reels-yt ("Hashcovet Reels YT", on hashcovetsales@gmail.com), app In production. Client secret is only shown once — if lost, create a new OAuth client (Web, redirect https://developers.google.com/oauthplayground) and update YT_CLIENT_ID/SECRET + new refresh token.
 - Shorts stay private: Google limits unaudited apps → owner makes them public in Studio; apply for the YouTube API audit.
 - Timed posts not going out: check KV clock (`/health` "Bot clock"), Actions → deploy-worker → Run workflow.
 - GitHub minutes (private repo, 2000/month; each video ≈45 min): health warns; fewer re-renders, or make the repo
@@ -156,6 +156,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-18 22:30: YouTube MOVED (approver request) to **hashcovetsales@gmail.com** (#Covet channel on that account). New Cloud project hashcovet-reels-yt + OAuth client (Web), In production; YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN all replaced (scopes youtube.upload + youtube + yt-analytics.readonly). IG/FB unchanged.
 - 2026-11-18: Health ignores crashes already fixed (a later run of the same workflow succeeded) — old numpy crash no longer reported.
 - 2026-11-18: Deep analytics CONNECTED: META_PAGE_TOKEN re-made with instagram_manage_insights + read_insights; YT_REFRESH_TOKEN re-made with yt-analytics.readonly (YouTube Analytics API enabled). Snapshot 13:12 IST: missing = [] (followers IG 195, FB 12, YT 0).
 - 2026-11-18: Real audio (owner): CC0 music from Openverse (8 tracks fetched, joke track removed; one per reel, seeded by

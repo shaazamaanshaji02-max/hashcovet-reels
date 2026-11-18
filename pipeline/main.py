@@ -669,7 +669,12 @@ def act_health(force=False):
     """🩺 Self-check: accounts, AI writers, stuck/missed reels, failed GitHub runs, sound files.
     Daily at 06:00 it only speaks up if something is wrong (plus a short 'all OK' on Mondays); /health always answers."""
     import publish as pub
-    from render import music_tracks, SFX_DIR
+    SFX_DIR = ROOT / "assets" / "sfx"
+    try:
+        _mus = json.loads((ROOT / "assets" / "music" / "credits.json").read_text())
+        music_tracks = lambda: [c for c in _mus if (ROOT / "assets" / "music" / c["file"]).exists()]
+    except Exception:
+        music_tracks = lambda: []
     probs, oks = [], []
     # 1. social accounts
     try:

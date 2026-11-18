@@ -14,9 +14,12 @@ Cloudflare Worker; nothing is made or posted without the approver.
    platform: 🔁 Retry <platform> (only if it failed) · 🗑 <platform> / 🗑 Remove from all (asks Yes/No).
 4. **Health** — `/health` any time, a 06:00 report when something is wrong (each issue has a fix button), instant
    crash alerts, and a twice-daily watchdog that checks the bot itself.
-5. **Learning** — every correction becomes a rule in `memory/learnings.json`, used in all future prompts.
+5. **Analytics** — nightly 9:30 PM report (+ weekly Sunday, monthly last day) and `/report day|week|month`
+   any time: views, watch time, retention, age, gender, device, country, what's working; plus a 📊 report for
+   every single video (auto at 1 and 7 days).
+6. **Learning** — every correction becomes a rule in `memory/learnings.json`, used in all future prompts.
 
-Telegram commands: `/status` `/new` `/plan 30` `/time` `/posted` `/accounts` `/health` `/help`.
+Telegram commands: `/status` `/new` `/plan 30` `/time` `/posted` `/accounts` `/health` `/report` `/help`.
 
 ## Where to start (humans and Claude)
 **Read `CLAUDE.md` first** — the complete, current handbook: flow, every button and action name, where each file

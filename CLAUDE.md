@@ -31,11 +31,12 @@ change for all with `/time 18:30`); one reel with 🕒 Posting time (`job.post_a
 once. 🎉 Celebration reels (`data/celebrations.json`) are EXTRA posts at `publish.celebration_time` (08:00), script sent
 06:00 the day before. Reminders 10:00, 11:30, 12:15, 15:00, 18:00 list everything awaiting approval (Open buttons).
 `/plan N` (≤62) writes N scripts (each needs approval); `/new [topic]` one more; `/status`, `/posted`, `/accounts`,
-`/health`, `/time`, `/help` (text = `HELP` in worker/src/index.js; ☰ menu set automatically by `<worker>/setup`).
+`/health`, `/time`, `/report day|week|month`, `/help` (text = `HELP` in worker/src/index.js; ☰ menu set automatically by `<worker>/setup`).
 **Clock:** ONE Cloudflare cron `*/15 * * * *`; `scheduled()` maps exact UTC times in `CRON_ACTION` → `bot.yml`
 actions `daily`, `remind`, `voicecheck`, `publish` (12:30 safety net), writes heartbeat KV `lastcron`, and dispatches
 `publish` when KV `next` (written by `common.sync_schedule`) is due. GitHub's own scheduler is used only by
 `watchdog.yml`. Job id = posting date `YYYY-MM-DD` (celebration: `YYYY-MM-DD-fest`).
+**Pending (as of 18 Nov):** 8 reels wait for approval; FIRST REAL POST NOT YET VERIFIED — after the first approval check the post card links + `/posted`.
 **Statuses:** script_review → producing (→ voice_pending) → video_review → approved → posting → published /
 post_failed → removed. (`ready_to_post` only if no platform is connected.)
 
@@ -78,7 +79,7 @@ post_failed → removed. (`ready_to_post` only if no platform is connected.)
 | Writer rules / tone | `prompts/system.md` |
 | Reel format + validation + char limits + allowed icons | `pipeline/spec.py` (+ icon SVGs in `templates/reel.html`) |
 | Design (Hashcovet look) | `templates/reel.html`, fonts in `assets/fonts/`; approver layout changes for all reels in `templates/design_overrides.json` |
-| Actions router | `pipeline/main.py` — commands: daily remind publish new plan status posted health settime connectcheck aitest voicecheck celebrations fetchmusic linkgroup access; buttons: sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno vundo · vtime open remake · aud at<N> atA at0 amd amu asd asu aso ahear aok adef · pman repost rpi rpf rpy unpubq unpub unpubno rmq<i/f/y> rm<i/f/y>. New force-reply prompts go in worker PROMPTS; new action names in bot.yml's description list |
+| Actions router | `pipeline/main.py` — commands: daily remind publish new plan status posted health settime connectcheck aitest voicecheck celebrations fetchmusic linkgroup access report reportauto vreport crash redeploy; buttons: sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno vundo · vtime open remake · aud at<N> atA at0 amd amu asd asu aso ahear aok adef · pman repost rpi rpf rpy unpubq unpub unpubno rmq<i/f/y> rm<i/f/y>. New force-reply prompts go in worker PROMPTS; new action names in bot.yml's description list |
 | Per-reel history (every version/edit) | `jobs/<id>/job.json` |
 | Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
@@ -137,7 +138,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 - Text overflow in video: adjust limits in `spec.py` or `fit()` calls in `templates/reel.html`.
 - Instagram/Facebook "not connected"/token error: developers.facebook.com/tools/explorer/29116526041334049 → (permissions
   pages_manage_posts, pages_read_engagement, pages_show_list, instagram_basic, instagram_content_publish,
-  instagram_manage_contents, business_management) → owner clicks Generate Access Token (popup must be HIS click) →
+  instagram_manage_contents, instagram_manage_insights, read_insights, business_management) → owner clicks Generate Access Token (popup must be HIS click) →
   ⓘ → Open in Access Token Tool → Extend → with the long-lived token GET me/accounts → HASHCOVET's access_token
   (show it in an in-page copy box via JS; never print it) → owner updates secret META_PAGE_TOKEN. Then /accounts.
 - YouTube error / "no channel": OAuth Playground (gear → own credentials = YT_CLIENT_ID/SECRET, scopes youtube.upload +

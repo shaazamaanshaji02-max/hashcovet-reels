@@ -75,6 +75,25 @@ async function dispatch(env, action, job = "", text = "") {
   if (r.status !== 204 && r.status !== 200) throw new Error(`GitHub dispatch ${r.status}: ${await r.text()}`);
 }
 
+const PRIVACY = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hashcovet Reels Publisher – Privacy Policy</title>
+<body style="font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;color:#222">
+<h1>Hashcovet Reels Publisher – Privacy Policy</h1>
+<p>Hashcovet Reels Publisher is an internal tool used only by HASHCOVET (hashcovet.com) to publish HASHCOVET's own
+short videos to HASHCOVET's own YouTube channel, Facebook Page and Instagram account after a HASHCOVET team member
+approves each video.</p>
+<h2>What data it uses</h2>
+<ul><li>Access to HASHCOVET's own YouTube channel, Facebook Page and Instagram account, granted by HASHCOVET, used only
+to upload HASHCOVET's approved videos with their titles, captions and hashtags, and to read the account names to confirm
+the right accounts are connected.</li>
+<li>It does not access, collect, store, sell or share any data of other users or viewers.</li></ul>
+<h2>Storage</h2>
+<p>Access tokens are stored as encrypted secrets in HASHCOVET's private GitHub repository and Cloudflare account and are
+used only by this tool. Access can be removed at any time from the Google account security page
+(myaccount.google.com/permissions) or Facebook settings (Business integrations).</p>
+<h2>Contact</h2><p>hashcovet@gmail.com · <a href="https://hashcovet.com">hashcovet.com</a></p>
+<p><small>Last updated: 18 November 2026</small></p></body>`;
+
 // Exact-time schedule (UTC crons in wrangler.toml; IST = UTC+5:30)
 const CRON_ACTION = {
   "30 0 * * *": "daily",    // 06:00 IST  make today's reel (review by 9 AM)
@@ -100,6 +119,9 @@ export default {
 
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (req.method === "GET" && (url.pathname === "/privacy" || url.pathname === "/terms")) {
+      return new Response(PRIVACY, { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
     if (req.method === "GET" && url.pathname === "/setup") {
       const r = await tg(env, "setWebhook", { url: `${url.origin}/hook`, secret_token: await hookSecret(env),
         allowed_updates: ["message", "callback_query"], drop_pending_updates: true });

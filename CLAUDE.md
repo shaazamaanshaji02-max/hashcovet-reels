@@ -49,6 +49,7 @@ Statuses: script_review → producing → video_review → approved → ready_to
    hosting needed). Each platform independent; results in `job.published`; status `posting` → `published` or
    `post_failed` (Telegram shows a 🔁 Retry button = action `repost`, which re-posts only the failed ones).
    A platform without its secrets is skipped; with none connected the old `ready_to_post` behaviour remains.
+   🗑 Remove: posted/failed messages carry "Remove from all platforms" (`unpubq` → confirm `unpub` / `unpubno`) → `publish.remove_all` deletes IG media, FB video, YT video; status `removed`; failures show the link to delete by hand. IG delete needs permission instagram_manage_contents on the Meta app + token.
    `/accounts` in Telegram (action `connectcheck`) shows which Page / IG handle / YT channel will be used (posts nothing).
    Owner: post to **HASHCOVET's own accounts** (not @executionwithshaaz). YouTube uploads are flagged
    `containsSyntheticMedia` (AI voice). `config.json publish` = platforms list, Graph API version, YouTube privacy.

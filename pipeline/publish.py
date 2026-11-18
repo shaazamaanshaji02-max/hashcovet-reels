@@ -233,3 +233,32 @@ def check_accounts():
     else:
         out.append("⚪ YouTube: not connected (secrets YT_CLIENT_ID / YT_CLIENT_SECRET / YT_REFRESH_TOKEN missing)")
     return out
+
+
+# ---------------- remove (one click from Telegram) ----------------
+def _yt_token():
+    return _check(requests.post("https://oauth2.googleapis.com/token", data={
+        "client_id": os.environ["YT_CLIENT_ID"], "client_secret": os.environ["YT_CLIENT_SECRET"],
+        "refresh_token": os.environ["YT_REFRESH_TOKEN"], "grant_type": "refresh_token"}, timeout=60))["access_token"]
+
+
+def remove_all(job):
+    """Delete this reel from every platform it was posted to. Returns {platform: 'removed' | error text}."""
+    done = job.get("published", {}); res = {}
+    for p in PLATFORMS:
+        r = done.get(p) or {}
+        if not r.get("id") or r.get("removed"):
+            continue
+        try:
+            if p in ("instagram", "facebook"):
+                _check(requests.delete(f"{GRAPH}/{r['id']}", params={"access_token": os.environ["META_PAGE_TOKEN"]},
+                                       timeout=60))
+            else:
+                d = requests.delete("https://www.googleapis.com/youtube/v3/videos", params={"id": r["id"]},
+                                    headers={"Authorization": f"Bearer {_yt_token()}"}, timeout=60)
+                if d.status_code not in (200, 204):
+                    _check(d)
+            r["removed"] = time.strftime("%Y-%m-%d %H:%M:%S"); r.pop("remove_error", None); res[p] = "removed"
+        except Exception as e:
+            r["remove_error"] = str(e)[:300]; res[p] = str(e)[:300]
+    return res

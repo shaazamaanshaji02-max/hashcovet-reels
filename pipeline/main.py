@@ -207,9 +207,11 @@ def publish(job, reason=""):
     if bad:
         from common import kb, send_text
         send_text(text + "\n\nThe ones that worked won't be posted twice.",
-                  kb([[("🔁 Retry failed posts", f"a|repost|{job['id']}")]]))
+                  kb([[("🔁 Retry failed posts", f"a|repost|{job['id']}")],
+                      [("🗑 Remove from all platforms", f"a|unpubq|{job['id']}")]]))
     else:
-        previews.notify(text)
+        from common import kb, send_text
+        send_text(text, kb([[("🗑 Remove from all platforms", f"a|unpubq|{job['id']}")]]))
 
 
 # ---------------- scheduled ----------------
@@ -304,7 +306,7 @@ def act_status():
         previews.notify("No upcoming reels. Send /new or /plan 30.")
         return
     icon = {"script_review": "📝", "producing": "⚙️", "voice_pending": "🎙", "video_review": "👀", "approved": "✅",
-            "ready_to_post": "📤", "published": "🟢", "posting": "📡", "post_failed": "⚠️"}
+            "ready_to_post": "📤", "published": "🟢", "posting": "📡", "post_failed": "⚠️", "removed": "🗑"}
     lines = [f"{icon.get(j['status'], '•')} {nice_date(j['date'])} — {j['status'].replace('_', ' ')} — "
              f"{j['spec']['topic'][:40]}" for j in rows]
     previews.notify("<b>Upcoming reels</b>\n" + "\n".join(lines))
@@ -451,6 +453,37 @@ def act_audio(job, action):
     audio_menu(job)
 
 
+def act_remove(job, action):
+    """🗑 Remove a posted reel from Instagram, Facebook and YouTube (asks once to confirm; can't be undone)."""
+    import publish as pub
+    from common import kb, send_text
+    jid = job["id"]
+    live = [p for p in pub.PLATFORMS if (job.get("published", {}).get(p) or {}).get("id")
+            and not job["published"][p].get("removed")]
+    if action == "unpubno":
+        previews.notify(f"👍 Kept — {nice_date(job['date'])} stays posted."); return
+    if not live:
+        previews.notify(f"ℹ️ {nice_date(job['date'])} isn't posted anywhere (nothing to remove)."); return
+    if action == "unpubq":
+        send_text(f"🗑 <b>Remove {nice_date(job['date'])} from {', '.join(pub.NAMES[p] for p in live)}?</b>\n"
+                  f"This deletes the post and its views, likes and comments. It can't be undone.",
+                  kb([[("✅ Yes, remove everywhere", f"a|unpub|{jid}")], [("✖️ No, keep it", f"a|unpubno|{jid}")]]))
+        return
+    res = pub.remove_all(job)
+    ok = [p for p, v in res.items() if v == "removed"]; bad = [p for p in res if p not in ok]
+    if not bad:
+        job["status"] = "removed"
+    log_event(job, "removed", res); save_job(job); git_commit(f"removed {jid}")
+    lines = [f"✅ Removed from {pub.NAMES[p]}" for p in ok]
+    for p in bad:
+        url = job["published"][p].get("url") or ""
+        lines.append(f"❌ {pub.NAMES[p]}: <code>{previews.esc(res[p])[:250]}</code>\n   Delete it by hand: {previews.esc(url)}")
+    if bad:
+        send_text("\n".join(lines), kb([[("🔁 Try removing again", f"a|unpub|{jid}")]]))
+    else:
+        previews.notify(f"🗑 <b>{nice_date(job['date'])} removed everywhere.</b>\n" + "\n".join(lines))
+
+
 # ---------------- buttons ----------------
 def act(action, jid, text):
     try:
@@ -467,6 +500,9 @@ def act(action, jid, text):
     if action in ("keepall", "keepno"):
         act_keep(job, action == "keepall")
         return
+    if action in ("unpubq", "unpub", "unpubno"):
+        act_remove(job, action)
+        return
     if action == "repost":
         if job["status"] == "post_failed":
             job["status"] = "approved"; publish(job, "Retry.")
@@ -474,7 +510,7 @@ def act(action, jid, text):
         else:
             previews.notify(f"ℹ️ {nice_date(job['date'])} is {job['status'].replace('_', ' ')} — nothing to retry.")
         return
-    if job["status"] in ("ready_to_post", "published", "posting", "post_failed") or (job["status"] == "approved" and action != "vok"):
+    if job["status"] in ("ready_to_post", "published", "posting", "post_failed", "removed") or (job["status"] == "approved" and action != "vok"):
         previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
         return
 

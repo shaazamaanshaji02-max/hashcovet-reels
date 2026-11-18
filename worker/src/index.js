@@ -52,7 +52,7 @@ Anyone else in the group cannot press buttons or use commands.
 🧠 It learns: every change you ask for or text you rewrite becomes a rule, so you won't need to ask again.
 ✍️ To edit: tap a button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing from all platforms…", unpubq: "Confirm below 👇", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));

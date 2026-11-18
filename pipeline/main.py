@@ -302,9 +302,9 @@ def celebration_days():
         return []
 
 
-def act_celebrations(days_ahead=3):
+def act_celebrations(days_ahead=1):
     """Extra morning reel for each celebration day (data/celebrations.json), written `days_ahead` days early
-    and sent for approval like any other script."""
+    and sent for approval like any other script (default: the day before, so it can post next morning)."""
     today = datetime.date.fromisoformat(ist_today()); made = 0
     for c in celebration_days():
         d = datetime.date.fromisoformat(c["date"]); jid = f"{c['date']}-fest"
@@ -320,7 +320,7 @@ def act_celebrations(days_ahead=3):
         git_commit(f"celebration script {jid}"); made += 1
         warn = (" ⚠️ This date depends on the moon/lunar calendar — check it's right; "
                 "if not, use 🕒 to move it.") if c.get("tentative") else ""
-        previews.script_preview(job, note=f"🎉 {c['name']} reel — extra morning post on {nice_when(job)}.{warn}")
+        previews.script_preview(job, note=f"{warn.strip()}" if warn else "")
     return made
 
 
@@ -838,7 +838,7 @@ if __name__ == "__main__":
         elif a == "voicecheck": act_voicecheck()
         elif a == "posted": act_posted()
         elif a == "settime": act_settime(t)
-        elif a == "celebrations": act_celebrations(int(t or 3))
+        elif a == "celebrations": act_celebrations(int(t or 1))
         elif a == "connectcheck":
             import publish as pub
             lines = pub.check_accounts(); print("\n".join(lines))

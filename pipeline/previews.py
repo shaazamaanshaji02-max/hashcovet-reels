@@ -19,6 +19,15 @@ def research_line(s):
     return "🔎 <i>Researched — " + " · ".join(bits) + "</i>\n" if bits else ""
 
 
+def extra_line(job):
+    """Celebration reels: say clearly it's an EXTRA post and exactly when it goes out."""
+    if job.get("kind") != "celebration":
+        return ""
+    from common import nice_when
+    return (f"🎉 <b>EXTRA celebration reel</b> (in addition to the daily reel) — posts <b>{nice_when(job)}</b>. "
+            f"Tap 🕒 Posting time to change it.\n")
+
+
 def script_preview(job, note=""):
     s = job["spec"]
     tips = "\n".join(
@@ -27,6 +36,7 @@ def script_preview(job, note=""):
         for i, t in enumerate(s["tips"], 1))
     from common import nice_when
     text = (f"📝 <b>SCRIPT for approval</b> · <code>{job['id']}</code> (v{job['version']}) · posts {nice_when(job)}\n"
+            f"{extra_line(job)}"
             f"{('ℹ️ ' + esc(note) + chr(10)) if note else ''}"
             f"<b>Topic:</b> {esc(s['topic'])}\n"
             f"{research_line(s)}\n"
@@ -54,6 +64,8 @@ def video_preview(job, video_path=None, note=""):
     j = job["id"]
     from common import nice_when
     head = f"🎬 <b>VIDEO for approval</b> · <code>{j}</code> (v{job['version']}) · posts {nice_when(job)}"
+    if job.get("kind") == "celebration":
+        head += "\n" + extra_line(job).strip()
     if note:
         head += f"\nℹ️ {esc(note)}"
     if video_path:

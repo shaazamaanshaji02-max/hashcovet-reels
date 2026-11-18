@@ -17,7 +17,7 @@ const HELP = `📖 hashcovet reels — how to use
 
 ⏰ AUTOMATIC
 • 06:00 — today's script is sent here
-• 🎉 Celebration days (Christmas, Onam, Diwali…) — an EXTRA morning reel; its script comes 3 days early
+• 🎉 Celebration days (Christmas, Onam, Diwali…) — an EXTRA reel on top of the daily one, posting that morning (8:00 AM). Its script comes the DAY BEFORE at 6 AM and shows its date + time; it has all the same buttons, incl. 🕒 to move it
 • Approved reels post at their time (default 12:30 PM). Approved after that time → posts right away
 • Reminders at 10:00, 11:30, 12:15, 3 PM, 6 PM list everything still waiting for you — tap Open to see it
 

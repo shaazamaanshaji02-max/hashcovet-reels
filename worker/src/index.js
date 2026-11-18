@@ -28,7 +28,7 @@ const HELP = `📖 hashcovet reels — how to use
 /time — see the default posting time · /time 18:30 changes it for ALL reels · /time celebration 08:00 for festival reels
 /posted — everything that went out, with links + ⚙️ Manage
 /accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
-/report — analytics: /report day · week · month (auto 9:30 PM; weekly Sun; monthly last day). Each reel also gets its own 📊 Video report (auto at 1 day and 7 days; or tap it under the reel / in /posted)
+/report — analytics (views, watch time, retention, age, gender, device, country): /report day · week · month (auto 9:30 PM; weekly Sun; monthly last day). Each reel also gets its own 📊 Video report (auto at 1 day and 7 days; or tap it under the reel / in /posted)
 /health — check everything is working (also runs every morning at 6 and tells you only if something is wrong)
 
 🩺 IF SOMETHING IS WRONG (6 AM report, /health, or an instant "crashed" alert)

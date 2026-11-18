@@ -155,6 +155,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-18: Health ignores crashes already fixed (a later run of the same workflow succeeded) — old numpy crash no longer reported.
 - 2026-11-18: Deep analytics CONNECTED: META_PAGE_TOKEN re-made with instagram_manage_insights + read_insights; YT_REFRESH_TOKEN re-made with yt-analytics.readonly (YouTube Analytics API enabled). Snapshot 13:12 IST: missing = [] (followers IG 195, FB 12, YT 0).
 - 2026-11-18: Real audio (owner): CC0 music from Openverse (8 tracks fetched, joke track removed; one per reel, seeded by
   the spec; looped/trimmed, faded) + earshot SFX pre-rendered into assets/sfx (whoosh per tip, knock on mistake, ding on

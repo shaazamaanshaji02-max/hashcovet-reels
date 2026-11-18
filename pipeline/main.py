@@ -732,6 +732,14 @@ def act_health(force=False):
                              params={"status": "failure", "created": f">={since}", "per_page": 20},
                              headers={"Authorization": f"Bearer {tok}"}, timeout=30).json()
             bad = r.get("workflow_runs", [])
+            # ignore crashes already fixed: a later run of the same workflow succeeded
+            ok = requests.get(f"https://api.github.com/repos/{repo}/actions/runs",
+                              params={"status": "success", "created": f">={since}", "per_page": 100},
+                              headers={"Authorization": f"Bearer {tok}"}, timeout=30).json().get("workflow_runs", [])
+            last_ok = {}
+            for o in ok:
+                last_ok[o["name"]] = max(last_ok.get(o["name"], ""), o["created_at"])
+            bad = [b for b in bad if b["created_at"] > last_ok.get(b["name"], "")]
             if bad:
                 names = ", ".join(sorted({b["name"] for b in bad}))
                 probs.append(f"⚠️ {len(bad)} background job(s) crashed in the last 24 h ({previews.esc(names)}) — "

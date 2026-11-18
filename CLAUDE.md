@@ -5,22 +5,39 @@ hashcovet.com), a video production studio. The owner is **not technical**: do th
 words, and ask them only for things only they can do (pasting secrets, approving in Telegram, account logins).
 
 ## FIRST STEP for any new session
-Before changing anything, tell the owner which accounts the task needs and ask them to log in to those in the
-browser first (all use shaazamaanshaji02@gmail.com — see "Accounts used" below). Typical needs:
-- code/design/prompt changes → GitHub (`shaazamaanshaji02-max`)
-- bot buttons/webhook issues → Cloudflare + Telegram
-- voice issues → Hugging Face; script-writer issues → Google AI Studio
-Confirm they are logged in, then start. Keys are pasted by the owner into the secret fields, never into chat.
+1. Read this whole file (it is kept current — the Status log at the bottom is the change history).
+2. Before changing anything, tell the owner which accounts the task needs and ask them to log in to those in the
+   browser first (see "Accounts used"). Typical needs:
+   - code/design/prompt changes → GitHub `shaazamaanshaji02-max` (if your GitHub login can't reach this private repo,
+     ask the owner to add their other account `Shaazamaan` as a Write collaborator, then use add_repo)
+   - bot buttons/webhook/clock issues → Cloudflare (shaazamaanshaji02@gmail.com) + Telegram
+   - posting to Instagram/Facebook → Facebook profile that admins Page HASHCOVET (+ developers.facebook.com)
+   - posting to YouTube → Google account **hashcovet@gmail.com** (channel #Covet)
+   - voice issues → Hugging Face; script-writer issues → Google AI Studio
+3. Keys are pasted by the owner into GitHub/Cloudflare secret fields, never into chat. Owner is not technical: open the
+   exact page/field in the browser and point to it; he does copy-paste. Anything that accepts terms or clicks a final
+   "Publish/Create" on an account he clicks himself.
+4. Verify live state instead of assuming: `/health` in Telegram, or dispatch `bot.yml` action `health` /
+   `connectcheck` and read the run log (gh api repos/<repo>/actions/... works through the session proxy).
+5. After a change: push to main (worker/ changes auto-deploy via deploy-worker.yml), dry-run with NO_GIT=1, and add a
+   line to the Status log.
 
 ## What the system does (end to end)
-**Schedule (owner's rules):** 1 reel per day, posted at **12:30 PM IST**. A finished reel must be in Telegram for
-review **by 9 AM**. Approved before 12:30 → posts at 12:30; approved after 12:30 → posts immediately on approval.
-Reminders if today's reel isn't approved: 10:00, 11:30, 12:15, 15:00, 18:00 IST. Owner can work ahead with
-`/plan N` (up to 62 days); `/status` lists upcoming days; `/new [topic]` adds one reel on the next free date;
-`/help` shows the owner guide (text in `worker/src/index.js` HELP). Bot menu commands set via @BotFather /setcommands.
-Clock = ONE Cloudflare cron `*/15 * * * *` (free plan max 5 per account); `scheduled()` matches the UTC time to `CRON_ACTION` (exact) → dispatch `bot.yml` actions `daily` (06:00), `remind`, `publish`
-(12:30). GitHub's own scheduler is NOT used (it runs late). Job id = posting date `YYYY-MM-DD`.
-Statuses: script_review → producing → video_review → approved → ready_to_post (→ published once Instagram exists).
+**Flow for EVERY reel (owner rule):** script → approver approves (as is / 🤖 AI change / ✍️ own words) → Arjun's voice +
+video are made → approver approves video + caption (edits allowed) → it posts to Instagram Reels + Facebook Reels +
+YouTube Shorts at its posting time. Nothing is ever made or posted without approval.
+**Schedule:** 1 daily reel; script sent 06:00 IST. Default posting time **12:30 IST** (`config.json publish.time`,
+change for all with `/time 18:30`); one reel with 🕒 Posting time (`job.post_at`). Approved after its time → posts at
+once. 🎉 Celebration reels (`data/celebrations.json`) are EXTRA posts at `publish.celebration_time` (08:00), script sent
+06:00 the day before. Reminders 10:00, 11:30, 12:15, 15:00, 18:00 list everything awaiting approval (Open buttons).
+`/plan N` (≤62) writes N scripts (each needs approval); `/new [topic]` one more; `/status`, `/posted`, `/accounts`,
+`/health`, `/time`, `/help` (text = `HELP` in worker/src/index.js; ☰ menu set automatically by `<worker>/setup`).
+**Clock:** ONE Cloudflare cron `*/15 * * * *`; `scheduled()` maps exact UTC times in `CRON_ACTION` → `bot.yml`
+actions `daily`, `remind`, `voicecheck`, `publish` (12:30 safety net), writes heartbeat KV `lastcron`, and dispatches
+`publish` when KV `next` (written by `common.sync_schedule`) is due. GitHub's own scheduler is used only by
+`watchdog.yml`. Job id = posting date `YYYY-MM-DD` (celebration: `YYYY-MM-DD-fest`).
+**Statuses:** script_review → producing (→ voice_pending) → video_review → approved → posting → published /
+post_failed → removed. (`ready_to_post` only if no platform is connected.)
 
 1. 06:00 IST `daily`: if today has no job, a free AI writes a "3 mistakes" script and sends it for APPROVAL (video only after approval)
    (`pipeline/ai_tasks.py` → `pipeline/llm.py` fallback: Gemini [auto-picks a current model] → Groq → SambaNova → NVIDIA → OpenRouter → Hugging Face → Cloudflare Workers AI; all OpenAI-compatible ones auto-pick a live
@@ -61,7 +78,7 @@ Statuses: script_review → producing → video_review → approved → ready_to
 | Writer rules / tone | `prompts/system.md` |
 | Reel format + validation + char limits + allowed icons | `pipeline/spec.py` (+ icon SVGs in `templates/reel.html`) |
 | Design (Hashcovet look) | `templates/reel.html`, fonts in `assets/fonts/`; approver layout changes for all reels in `templates/design_overrides.json` |
-| Actions router | `pipeline/main.py` (`daily remind publish new plan status` + buttons `sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno vundo`) |
+| Actions router | `pipeline/main.py` — commands: daily remind publish new plan status posted health settime connectcheck aitest voicecheck celebrations fetchmusic linkgroup access; buttons: sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno vundo · vtime open remake · aud at<N> atA at0 amd amu asd asu aso ahear aok adef · pman repost rpi rpf rpy unpubq unpub unpubno rmq<i/f/y> rm<i/f/y>. New force-reply prompts go in worker PROMPTS; new action names in bot.yml's description list |
 | Per-reel history (every version/edit) | `jobs/<id>/job.json` |
 | Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
@@ -69,6 +86,11 @@ Statuses: script_review → producing → video_review → approved → ready_to
 | Posting to IG / FB / YouTube | `pipeline/publish.py` (+ `config.json publish`) |
 | Background music (CC0, Openverse) | `assets/music/*.mp3` + `credits.json`; refresh: Actions → fetch-music (`pipeline/fetch_music.py`) |
 | Sound effects (earshot bank) | `assets/sfx/*.wav` (+ README with ids); placed by `render.py:make_real_bed` |
+| Celebration days | `data/celebrations.json` (date, name, tentative=moon-dependent) |
+| Posting time / schedule | `common.post_time(job)` (single source), `common.sync_schedule()` → Cloudflare KV `hashcovet-reels-sched` |
+| Health / watchdog | `main.act_health` (06:00 + /health, fix buttons) · `pipeline/watchdog.py` + `.github/workflows/watchdog.yml` |
+| Privacy/terms page (needed by Google/Meta apps) | `<worker>/privacy` and `/terms` (PRIVACY in worker/src/index.js) |
+| Workflows | `bot.yml` (light actions; needs requests+numpy), `produce.yml` (voice+video, ~45 min), `deploy-worker.yml`, `fetch-music.yml`, `watchdog.yml`, `voice-test.yml` — bot/produce send a Telegram alert if they crash outside Python |
 
 ## Brand design (must not drift)
 Pure black bg; faint grey grid 58×46.5px (lines rgba(255,255,255,.1)); magenta glow #811A76 only top-right and
@@ -77,7 +99,7 @@ logo = "#" on navy→crimson gradient circle + "covet" Poppins Bold + "Innovate 
 Reel rules from the owner: branded thumbnail (logo, social icons, web pill, arrow) for the **first 1 second only**;
 inside content only a small corner logo + "hashcovet.com" watermark; end card keeps full branding.
 
-## Accounts used (owner's login email for all: shaazamaanshaji02@gmail.com)
+## Accounts used (owner login shaazamaanshaji02@gmail.com, EXCEPT YouTube/Google Cloud = hashcovet@gmail.com)
 | Service | Account | Used for | Secret(s) it provides |
 |---|---|---|---|
 | GitHub | `shaazamaanshaji02-max` (repo `shaazamaanshaji02-max/hashcovet-reels`, private) | code, daily schedule, voice + video rendering (Actions) | `GITHUB_TOKEN` for the Worker: fine-grained PAT → github.com/settings/personal-access-tokens, repo hashcovet-reels only, Actions: Read & write |
@@ -100,10 +122,10 @@ Where each secret is stored:
 If a key leaks or stops working: create a new one at the same page and overwrite the secret with the same name.
 
 ## Secrets (names only — values live in GitHub/Cloudflare, never in the repo)
-GitHub Actions: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `GEMINI_API_KEY` (+ optional `GROQ_API_KEY`,
-`OPENROUTER_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`).
-Worker deploy (also GitHub secrets): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `WORKER_GITHUB_TOKEN`.
-Never ask the owner to paste secrets into chat; have them paste into the GitHub/Cloudflare secret fields.
+GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `GEMINI_API_KEY` (+ optional `GROQ_API_KEY`,
+`OPENROUTER_API_KEY`, `SAMBANOVA_API_KEY`, `NVIDIA_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`), posting:
+`META_PAGE_TOKEN`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`; Worker/KV: `CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`, `WORKER_GITHUB_TOKEN`. Never ask the owner to paste secrets into chat.
 
 ## Common fixes
 - Bot says "All AI providers failed": a model name was retired → update `config.json` `llm_models`, or add a key.
@@ -112,6 +134,19 @@ Never ask the owner to paste secrets into chat; have them paste into the GitHub/
 - Buttons do nothing: Actions → deploy-worker → Run workflow (redeploys + re-registers webhook); check Worker logs in Cloudflare.
 - Scheduled run stopped: GitHub pauses schedules after 60 days without repo activity; re-enable in Actions tab.
 - Text overflow in video: adjust limits in `spec.py` or `fit()` calls in `templates/reel.html`.
+- Instagram/Facebook "not connected"/token error: developers.facebook.com/tools/explorer/29116526041334049 → (permissions
+  pages_manage_posts, pages_read_engagement, pages_show_list, instagram_basic, instagram_content_publish,
+  instagram_manage_contents, business_management) → owner clicks Generate Access Token (popup must be HIS click) →
+  ⓘ → Open in Access Token Tool → Extend → with the long-lived token GET me/accounts → HASHCOVET's access_token
+  (show it in an in-page copy box via JS; never print it) → owner updates secret META_PAGE_TOKEN. Then /accounts.
+- YouTube error / "no channel": OAuth Playground (gear → own credentials = YT_CLIENT_ID/SECRET, scopes youtube.upload +
+  youtube) → owner signs in as hashcovet@gmail.com → Exchange → owner saves Refresh token as YT_REFRESH_TOKEN.
+  Google Cloud project zippy-cab-515105-r8 ("Hashcovet Reels"), app In production.
+- Shorts stay private: Google limits unaudited apps → owner makes them public in Studio; apply for the YouTube API audit.
+- Timed posts not going out: check KV clock (`/health` "Bot clock"), Actions → deploy-worker → Run workflow.
+- GitHub minutes (private repo, 2000/month; each video ≈45 min): health warns; fewer re-renders, or make the repo
+  public / buy minutes (owner's decision).
+- Instagram delete fails: token missing instagram_manage_contents → redo the Meta token steps above.
 
 ## Test locally (no network needed)
 `python pipeline/render.py --spec jobs/sample/job.json --lines test_lines --out build/test.mp4`

@@ -40,7 +40,8 @@ Each problem comes with a fix button:
 🔁 Retry posts / ⚙️ Fix post — a platform failed or posting got stuck
 📋 See posted reels — a missed post was posted automatically
 🎵 Re-download music — music files missing
-🔗 See the latest crash — opens the error page (send it to Claude if it keeps happening)
+🔎 Show the crash details — what broke, right here (forward to Claude if it repeats)
+🔧 Restart the bot — if its clock stopped
 🔗 Open on YouTube — a Short stayed private (Google limits new apps); make it public in YouTube Studio
 🔁 Remake video — also offered when a waiting video file is about to expire (kept 30 days)
 It also watches GitHub free minutes (2,000/month) and storage.
@@ -76,7 +77,7 @@ Every delete asks "Yes / No" first — a deleted post can't come back.
 🧠 Every change you ask for becomes a rule for future reels.
 ✍️ To type something: tap the button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", crash: "🔎 Reading the error…", redeploy: "🔧 Restarting…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));

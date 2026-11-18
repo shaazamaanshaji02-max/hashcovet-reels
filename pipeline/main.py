@@ -735,7 +735,7 @@ def act_health(force=False):
                 names = ", ".join(sorted({b["name"] for b in bad}))
                 probs.append(f"⚠️ {len(bad)} background job(s) crashed in the last 24 h ({previews.esc(names)}) — "
                              f"if it keeps happening, ask Claude to look")
-                button("🔗 See the latest crash", bad[0]["html_url"])
+                button("🔎 Show the crash details", f"a|crash|{bad[0]['id']}")
             else:
                 oks.append("✅ No crashed background jobs (24 h)")
     except Exception:
@@ -790,7 +790,7 @@ def act_health(force=False):
                        datetime.datetime.fromisoformat(last.text.replace("Z", "+00:00"))).total_seconds() / 60
                 (oks.append("✅ Bot clock ticking") if age < 45 else
                  probs.append(f"❌ Bot clock stopped {int(age)} min ago (no reminders / timed posts)"))
-                if age >= 45: button("🔗 Redeploy the bot", f"https://github.com/{os.environ.get('GITHUB_REPOSITORY')}/actions/workflows/deploy-worker.yml")
+                if age >= 45: button("🔧 Restart the bot", "a|redeploy|")
     except Exception as e:
         print("clock check failed:", e)
     # 4d. YouTube uploads that stayed private; videos whose file is about to expire (kept 30 days)
@@ -839,6 +839,47 @@ def act_fetchmusic():
         print("would run fetch-music"); return
     subprocess.run(["gh", "workflow", "run", "fetch-music.yml"], check=True)
     previews.notify("🎵 Downloading the music library again (~2 min). New videos use it automatically.")
+
+def act_crash(run_id):
+    """🔎 Show WHY a background job crashed, right in Telegram (GitHub pages are private, so links 404 on the phone)."""
+    import requests
+    repo, tok = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GH_TOKEN")
+    h = {"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}
+    base = f"https://api.github.com/repos/{repo}/actions"
+    try:
+        if not run_id:
+            since = (datetime.datetime.utcnow() - datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            rr = requests.get(f"{base}/runs", headers=h, timeout=30,
+                              params={"status": "failure", "created": f">={since}", "per_page": 1}).json()["workflow_runs"]
+            if not rr:
+                previews.notify("✅ No crashed background jobs in the last 24 hours."); return
+            run_id = rr[0]["id"]
+        run = requests.get(f"{base}/runs/{run_id}", headers=h, timeout=30).json()
+        jobs = requests.get(f"{base}/runs/{run_id}/jobs", headers=h, timeout=30).json().get("jobs", [])
+        job = next((j for j in jobs if j.get("conclusion") == "failure"), jobs[0] if jobs else None)
+        step = next((st["name"] for st in (job or {}).get("steps", []) if st.get("conclusion") == "failure"), "?")
+        log = requests.get(f"{base}/jobs/{job['id']}/logs", headers=h, timeout=60).text if job else ""
+        lines = [l[29:] if len(l) > 29 and l[4] == "-" else l for l in log.splitlines()]
+        keep = [l for l in lines if re.search(r"Error|Exception|Traceback|error:|failed|FAILED|fatal", l)
+                and "##[group]" not in l and "warning" not in l.lower()][-8:]
+        when = datetime.datetime.fromisoformat(run["created_at"].rstrip("Z")).replace(
+            tzinfo=datetime.timezone.utc).astimezone(ist_now().tzinfo).strftime("%d %b %I:%M %p")
+        what = (run.get("display_title") or run.get("name") or "")[:60]
+        txt = (f"🔎 <b>Crash details</b>\nJob: <b>{previews.esc(run.get('name'))}</b> ({previews.esc(what)}) · {when}\n"
+               f"Failed step: <b>{previews.esc(step)}</b>\n\n<code>{previews.esc(chr(10).join(keep) or 'no error lines found')[:2500]}</code>\n\n"
+               f"If it happened once, it's usually a temporary hiccup (free services). If it repeats, forward this to Claude.")
+        from common import kb, send_text
+        send_text(txt, kb([[("🩺 Run health check", "a|health|")]]))
+    except Exception as ex:
+        previews.notify(f"⚠️ Couldn't read the crash details: <code>{previews.esc(str(ex))[:200]}</code>")
+
+
+def act_redeploy():
+    if os.environ.get("NO_GIT"):
+        print("would redeploy"); return
+    subprocess.run(["gh", "workflow", "run", "deploy-worker.yml"], check=True)
+    previews.notify("🔧 Restarting the bot (~1 min). Buttons and timed posts come back automatically.")
+
 
 # ---------------- buttons ----------------
 def act(action, jid, text):
@@ -1040,6 +1081,8 @@ if __name__ == "__main__":
             if n.day == calendar.monthrange(n.year, n.month)[1]: analytics.send("month")
             git_commit("analytics snapshot", extra=("data/analytics",))
         elif a == "fetchmusic": act_fetchmusic()
+        elif a == "crash": act_crash(t or j)
+        elif a == "redeploy": act_redeploy()
         elif a == "settime": act_settime(t)
         elif a == "celebrations": act_celebrations(int(t or 1))
         elif a == "connectcheck":

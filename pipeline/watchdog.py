@@ -79,7 +79,8 @@ def main():
         requests.post(f"https://api.telegram.org/bot{BOT}/sendMessage", timeout=30, json={
             "chat_id": chat(), "text": text, "parse_mode": "HTML",
             "reply_markup": {"inline_keyboard": [[{"text": "🩺 Run full health check", "callback_data": "a|health|"}],
-                                                 [{"text": "🔗 Open background jobs", "url": run}]]}})
+                                                 [{"text": "🔎 Show latest crash details", "callback_data": "a|crash|"}],
+                                                 [{"text": "🔧 Restart the bot", "callback_data": "a|redeploy|"}]]}})
 
 
 if __name__ == "__main__":

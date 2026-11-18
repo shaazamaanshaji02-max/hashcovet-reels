@@ -666,23 +666,32 @@ def _since(job):
 
 
 def act_health(force=False):
-    """🩺 Self-check: accounts, AI writers, stuck/missed reels, failed GitHub runs, sound files.
-    Daily at 06:00 it only speaks up if something is wrong (plus a short 'all OK' on Mondays); /health always answers."""
+    """🩺 Self-check: accounts, AI writers, stuck/missed reels, failed GitHub runs, sound files — each issue comes
+    with a button that fixes or opens it. Daily at 06:00 it only speaks up if something is wrong (plus 'all OK' on
+    Mondays); /health always answers."""
     import publish as pub
+    from common import kb, send_text
     SFX_DIR = ROOT / "assets" / "sfx"
     try:
         _mus = json.loads((ROOT / "assets" / "music" / "credits.json").read_text())
-        music_tracks = lambda: [c for c in _mus if (ROOT / "assets" / "music" / c["file"]).exists()]
+        music_ok = any((ROOT / "assets" / "music" / c["file"]).exists() for c in _mus)
     except Exception:
-        music_tracks = lambda: []
-    probs, oks = [], []
+        music_ok = False
+    probs, oks, btns = [], [], []
+
+    def button(label, data):
+        if (label, data) not in btns and len(btns) < 12:
+            btns.append((label, data))
     # 1. social accounts
     try:
         for line in pub.check_accounts():
-            (oks if line.startswith("✅") else probs).append(line + ("" if line.startswith("✅") else
-                " → fix: send /accounts; if a login expired, ask Claude to reconnect it"))
+            if line.startswith("✅"):
+                oks.append(line)
+            else:
+                probs.append(line + " → if a login expired, ask Claude to reconnect it")
+                button("🔌 Check accounts again", "a|connectcheck|")
     except Exception as e:
-        probs.append(f"❌ Account check failed: {previews.esc(str(e))[:150]}")
+        probs.append(f"❌ Account check failed: {previews.esc(str(e))[:150]}"); button("🔌 Check accounts again", "a|connectcheck|")
     # 2. AI writers (one working is enough)
     import llm
     ok_ai = None
@@ -691,22 +700,27 @@ def act_health(force=False):
             llm.parse_json(llm._call(prov, "Reply only with JSON.", 'Return {"ok": true}')); ok_ai = prov; break
         except Exception:
             pass
-    (oks.append(f"✅ Script writer: {ok_ai}") if ok_ai else
-     probs.append("❌ No AI script writer is working → fix: send /aitest; a key may have expired"))
+    if ok_ai:
+        oks.append(f"✅ Script writer: {ok_ai}")
+    else:
+        probs.append("❌ No AI script writer is working (a key may have expired)"); button("🧪 Test AI writers", "a|aitest|")
     # 3. reels stuck or missed
     now = ist_now()
     for j in all_jobs():
-        st, name = j["status"], f"{'🎉 ' if j.get('kind') == 'celebration' else ''}{nice_date(j['date'])}"
+        st, jid = j["status"], j["id"]
+        name = f"{'🎉 ' if j.get('kind') == 'celebration' else ''}{nice_date(j['date'])}"
         if st == "producing" and _since(j) > 4:
-            probs.append(f"⚠️ {name}: video has been 'making' for {int(_since(j))} h → tap Open on it, or ask Claude to check")
+            probs.append(f"⚠️ {name}: video has been 'making' for {int(_since(j))} h")
+            button(f"🔁 Remake video {nice_date(j['date'])}", f"a|remake|{jid}")
         elif st == "posting" and _since(j) > 1:
-            probs.append(f"⚠️ {name}: stuck while posting → send /posted and use ⚙️ Manage → Retry")
+            probs.append(f"⚠️ {name}: stuck while posting"); button(f"⚙️ Fix {nice_date(j['date'])} post", f"a|pman|{jid}")
         elif st == "approved" and now - post_time(j) > datetime.timedelta(minutes=45):
-            probs.append(f"⚠️ {name}: approved but not posted (was due {nice_when(j)}) → it will be retried now")
+            probs.append(f"⚠️ {name}: approved but not posted (was due {nice_when(j)}) — posting it now")
         elif st == "voice_pending" and _since(j) > 12:
-            probs.append(f"⚠️ {name}: waiting for Arjun's voice for {int(_since(j))} h → the free voice service may be down")
+            probs.append(f"⚠️ {name}: waiting for Arjun's voice for {int(_since(j))} h (free voice service may be down)")
+            button("🎙 Retry Arjun's voice now", "a|voicecheck|")
         elif st == "post_failed":
-            probs.append(f"⚠️ {name}: some platforms failed → send /posted → ⚙️ Manage → Retry")
+            probs.append(f"⚠️ {name}: some platforms failed"); button(f"🔁 Retry {nice_date(j['date'])} posts", f"a|pman|{jid}")
     # 4. GitHub runs that crashed in the last 24 h
     try:
         import requests
@@ -719,27 +733,44 @@ def act_health(force=False):
             bad = r.get("workflow_runs", [])
             if bad:
                 names = ", ".join(sorted({b["name"] for b in bad}))
-                probs.append(f"⚠️ {len(bad)} background job(s) crashed in the last 24 h ({previews.esc(names)}) → ask Claude to look")
+                probs.append(f"⚠️ {len(bad)} background job(s) crashed in the last 24 h ({previews.esc(names)}) — "
+                             f"if it keeps happening, ask Claude to look")
+                button("🔗 See the latest crash", bad[0]["html_url"])
             else:
                 oks.append("✅ No crashed background jobs (24 h)")
     except Exception:
         pass
     # 5. sound files
-    if not music_tracks():
-        probs.append("⚠️ Background music files missing → videos fall back to the basic music (Actions → fetch-music)")
+    if not music_ok:
+        probs.append("⚠️ Background music files missing (videos use basic music)"); button("🎵 Re-download music", "a|fetchmusic|")
     if not (SFX_DIR / "whoosh.wav").exists():
-        probs.append("⚠️ Sound-effect files missing → videos use basic sounds")
+        probs.append("⚠️ Sound-effect files missing (videos use basic sounds) — ask Claude to restore them")
     sync_schedule()
     if any("approved but not posted" in p for p in probs):
-        act_publish()
-    monday = now.weekday() == 0
-    if probs:
-        previews.notify(f"🩺 <b>Health check: {len(probs)} issue(s)</b>\n" + "\n".join(probs) +
-                        ("\n\n" + "\n".join(oks) if oks else ""))
-    elif force or monday:
-        previews.notify("🩺 <b>Health check: all OK</b>\n" + "\n".join(oks))
+        act_publish(); button("📋 See posted reels", "a|posted|")
     print("\n".join(probs + oks))
+    if probs:
+        rows = [[b] for b in btns] + [[("🩺 Check again", "a|health|")]]
+        send_text(f"🩺 <b>Health check: {len(probs)} issue(s)</b>\n" + "\n".join(probs) +
+                  ("\n\n" + "\n".join(oks) if oks else ""), kb(rows))
+    elif force or now.weekday() == 0:
+        send_text("🩺 <b>Health check: all OK</b>\n" + "\n".join(oks), kb([[("🩺 Check again", "a|health|")]]))
 
+
+def act_remake(job):
+    """🔁 Remake a stuck video from its approved script (Arjun's voice lines are reused if already made)."""
+    if job["status"] not in ("producing", "voice_pending", "video_review"):
+        previews.notify(f"ℹ️ {nice_date(job['date'])} is {job['status'].replace('_', ' ')} — nothing to remake."); return
+    job["status"] = "producing"; log_event(job, "remake", "health button"); save_job(job); git_commit(f"remake {job['id']}")
+    previews.notify(f"🔁 Remaking the video for {nice_date(job['date'])}… the preview will arrive here.")
+    dispatch_produce(job["id"], "Remade after a health check.")
+
+
+def act_fetchmusic():
+    if os.environ.get("NO_GIT"):
+        print("would run fetch-music"); return
+    subprocess.run(["gh", "workflow", "run", "fetch-music.yml"], check=True)
+    previews.notify("🎵 Downloading the music library again (~2 min). New videos use it automatically.")
 
 # ---------------- buttons ----------------
 def act(action, jid, text):
@@ -768,6 +799,8 @@ def act(action, jid, text):
         return
     if action == "vtime":
         act_vtime(job, text); return
+    if action == "remake":
+        act_remake(job); return
     if action == "pman":
         post_card(job); return
     if action == "repost" or re.fullmatch(r"rp[ify]", action):
@@ -927,6 +960,7 @@ if __name__ == "__main__":
         elif a == "voicecheck": act_voicecheck()
         elif a == "posted": act_posted()
         elif a == "health": act_health(force=True)
+        elif a == "fetchmusic": act_fetchmusic()
         elif a == "settime": act_settime(t)
         elif a == "celebrations": act_celebrations(int(t or 1))
         elif a == "connectcheck":

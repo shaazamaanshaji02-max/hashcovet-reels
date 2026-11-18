@@ -29,6 +29,18 @@ const HELP = `📖 hashcovet reels — how to use
 /posted — everything that went out, with links + ⚙️ Manage
 /accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
 /health — check everything is working (also runs every morning at 6 and tells you only if something is wrong)
+
+🩺 IF SOMETHING IS WRONG (6 AM report, /health, or an instant "crashed" alert)
+Each problem comes with a fix button:
+🔌 Check accounts again — a social login expired or disconnected (then ask Claude to reconnect it)
+🧪 Test AI writers — scripts can't be written (a key expired)
+🔁 Remake video — a video got stuck while being made
+🎙 Retry Arjun's voice now — the voice is still waiting
+🔁 Retry posts / ⚙️ Fix post — a platform failed or posting got stuck
+📋 See posted reels — a missed post was posted automatically
+🎵 Re-download music — music files missing
+🔗 See the latest crash — opens the error page (send it to Claude if it keeps happening)
+🩺 Check again — run the check once more
 /help — this guide
 
 🔘 UNDER A SCRIPT
@@ -59,7 +71,7 @@ Every delete asks "Yes / No" first — a deleted post can't come back.
 🧠 It learns: every change you ask for becomes a rule, so you won't need to ask again.
 ✍️ To type something: tap the button, then REPLY to the message the bot sends.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));

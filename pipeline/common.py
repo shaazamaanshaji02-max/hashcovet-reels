@@ -129,7 +129,8 @@ def chat_id():
 
 def kb(rows):
     """rows: [[(label, action), ...], ...] -> inline keyboard; callback data = a|action|job"""
-    return {"inline_keyboard": [[{"text": t, "callback_data": d} for t, d in row] for row in rows]}
+    return {"inline_keyboard": [[{"text": t, "url": d} if d.startswith("http") else {"text": t, "callback_data": d}
+                                 for t, d in row] for row in rows]}
 
 
 def send_text(text, buttons=None):

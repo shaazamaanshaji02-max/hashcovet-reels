@@ -616,7 +616,8 @@ if __name__ == "__main__":
         elif a == "voicecheck": act_voicecheck()
         elif a == "connectcheck":
             import publish as pub
-            previews.notify("🔌 <b>Posting accounts</b>\n" + "\n".join(previews.esc(x) for x in pub.check_accounts()))
+            lines = pub.check_accounts(); print("\n".join(lines))
+            previews.notify("🔌 <b>Posting accounts</b>\n" + "\n".join(previews.esc(x) for x in lines))
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

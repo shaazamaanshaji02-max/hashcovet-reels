@@ -242,10 +242,11 @@ def _yt_token():
         "refresh_token": os.environ["YT_REFRESH_TOKEN"], "grant_type": "refresh_token"}, timeout=60))["access_token"]
 
 
-def remove_all(job):
-    """Delete this reel from every platform it was posted to. Returns {platform: 'removed' | error text}."""
+def remove_all(job, only=None):
+    """Delete this reel from the given platforms (default: every platform it is on).
+    Returns {platform: 'removed' | error text}."""
     done = job.get("published", {}); res = {}
-    for p in PLATFORMS:
+    for p in (only or PLATFORMS):
         r = done.get(p) or {}
         if not r.get("id") or r.get("removed"):
             continue

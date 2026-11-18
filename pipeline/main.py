@@ -190,28 +190,77 @@ def publish(job, reason=""):
         return
     job["status"] = "posting"; save_job(job); git_commit(f"posting {job['id']}")
     pub.publish_all(job)
-    done = job.get("published", {})
-    ok = [p for p in pub.enabled() if (done.get(p) or {}).get("id")]
-    bad = [p for p in pub.enabled() if p not in ok]
-    job["status"] = "published" if not bad else "post_failed"
-    log_event(job, "published" if not bad else "post_failed", {p: done.get(p) for p in pub.enabled()})
+    refresh_post_status(job)
+    log_event(job, job["status"], {p: (job.get("published") or {}).get(p) for p in pub.enabled()})
     save_job(job)
+    post_card(job, reason)
+
+
+# ---------------- posted reels: card with per-platform retry / remove ----------------
+KEY = {"instagram": "i", "facebook": "f", "youtube": "y"}
+FROM_KEY = {v: k for k, v in KEY.items()}
+
+
+def post_state(job):
+    """(live, removed, failed) platform lists for this reel."""
+    import publish as pub
+    done = job.get("published") or {}
+    live = [p for p in pub.PLATFORMS if (done.get(p) or {}).get("id") and not done[p].get("removed")]
+    removed = [p for p in pub.PLATFORMS if (done.get(p) or {}).get("removed")]
+    failed = [p for p in pub.enabled() if p not in live and p not in removed]
+    return live, removed, failed
+
+
+def refresh_post_status(job):
+    live, removed, failed = post_state(job)
+    job["status"] = "post_failed" if failed else "published" if live else "removed" if removed else job["status"]
+
+
+def post_card(job, note=""):
+    """One message per reel: link per platform + buttons to retry any failed one, remove any one, or remove all."""
+    import publish as pub
+    from common import kb, send_text
+    live, removed, failed = post_state(job); done = job.get("published") or {}; j = job["id"]
     lines = []
-    for p in ok:
-        r = done[p]; extra = " (private — see note)" if r.get("privacy") == "private" else ""
+    for p in live:
+        r = done[p]; extra = " (private)" if r.get("privacy") == "private" else ""
         lines.append(f"✅ {pub.NAMES[p]}: {previews.esc(r.get('url') or 'posted')}{extra}")
-    for p in bad:
-        lines.append(f"❌ {pub.NAMES[p]}: <code>{previews.esc((done.get(p) or {}).get('error', 'failed'))[:300]}</code>")
-    head = f"🟢 <b>{nice_date(job['date'])} posted.</b>" if not bad else f"⚠️ <b>{nice_date(job['date'])}: some posts failed.</b>"
-    text = head + (f" {previews.esc(reason)}" if reason else "") + "\n" + "\n".join(lines)
-    if bad:
-        from common import kb, send_text
-        send_text(text + "\n\nThe ones that worked won't be posted twice.",
-                  kb([[("🔁 Retry failed posts", f"a|repost|{job['id']}")],
-                      [("🗑 Remove from all platforms", f"a|unpubq|{job['id']}")]]))
-    else:
-        from common import kb, send_text
-        send_text(text, kb([[("🗑 Remove from all platforms", f"a|unpubq|{job['id']}")]]))
+    for p in failed:
+        lines.append(f"❌ {pub.NAMES[p]}: <code>{previews.esc((done.get(p) or {}).get('error', 'not posted yet'))[:250]}</code>")
+    for p in removed:
+        lines.append(f"🗑 {pub.NAMES[p]}: removed")
+    head = (f"🟢 <b>{nice_date(job['date'])} posted.</b>" if live and not failed else
+            f"⚠️ <b>{nice_date(job['date'])}: some posts failed.</b>" if failed else
+            f"🗑 <b>{nice_date(job['date'])} removed everywhere.</b>")
+    topic = previews.esc(job["spec"].get("topic", ""))
+    text = f"{head} {previews.esc(note)}\n<i>{topic}</i>\n" + "\n".join(lines)
+    rows = []
+    if failed:
+        rows.append([(f"🔁 Retry {pub.NAMES[p].split()[0]}", f"a|rp{KEY[p]}|{j}") for p in failed])
+        if len(failed) > 1:
+            rows.append([("🔁 Retry all failed", f"a|repost|{j}")])
+    if live:
+        rows.append([(f"🗑 {pub.NAMES[p].split()[0]}", f"a|rmq{KEY[p]}|{j}") for p in live])
+        if len(live) > 1:
+            rows.append([("🗑 Remove from all", f"a|unpubq|{j}")])
+    send_text(text, kb(rows) if rows else None)
+
+
+def act_posted():
+    """/posted — every reel that went out (newest first) with its links + a Manage button each."""
+    from common import kb, send_text
+    jobs = sorted([j for j in all_jobs() if j.get("published")], key=lambda j: j["date"], reverse=True)[:15]
+    if not jobs:
+        previews.notify("📭 Nothing has been posted yet."); return
+    import publish as pub
+    for job in jobs:
+        live, removed, failed = post_state(job)
+        icons = " ".join(("✅" if p in live else "🗑" if p in removed else "❌") + pub.NAMES[p].split()[0]
+                         for p in pub.PLATFORMS if p in live + removed + failed)
+        links = " · ".join(f'<a href="{previews.esc(job["published"][p].get("url", ""))}">{pub.NAMES[p].split()[0]}</a>'
+                           for p in live if job["published"][p].get("url"))
+        send_text(f"<b>{nice_date(job['date'])}</b> — {previews.esc(job['spec'].get('topic', ''))}\n{icons}\n{links}",
+                  kb([[("⚙️ Manage (retry / remove)", f"a|pman|{job['id']}")]]))
 
 
 # ---------------- scheduled ----------------
@@ -454,35 +503,34 @@ def act_audio(job, action):
 
 
 def act_remove(job, action):
-    """🗑 Remove a posted reel from Instagram, Facebook and YouTube (asks once to confirm; can't be undone)."""
+    """🗑 Remove a posted reel from one platform (rmq<k> → rm<k>) or all (unpubq → unpub). Confirms first."""
     import publish as pub
     from common import kb, send_text
-    jid = job["id"]
-    live = [p for p in pub.PLATFORMS if (job.get("published", {}).get(p) or {}).get("id")
-            and not job["published"][p].get("removed")]
+    jid = job["id"]; live, _, _ = post_state(job)
     if action == "unpubno":
         previews.notify(f"👍 Kept — {nice_date(job['date'])} stays posted."); return
-    if not live:
-        previews.notify(f"ℹ️ {nice_date(job['date'])} isn't posted anywhere (nothing to remove)."); return
-    if action == "unpubq":
-        send_text(f"🗑 <b>Remove {nice_date(job['date'])} from {', '.join(pub.NAMES[p] for p in live)}?</b>\n"
-                  f"This deletes the post and its views, likes and comments. It can't be undone.",
-                  kb([[("✅ Yes, remove everywhere", f"a|unpub|{jid}")], [("✖️ No, keep it", f"a|unpubno|{jid}")]]))
-        return
-    res = pub.remove_all(job)
-    ok = [p for p, v in res.items() if v == "removed"]; bad = [p for p in res if p not in ok]
-    if not bad:
-        job["status"] = "removed"
-    log_event(job, "removed", res); save_job(job); git_commit(f"removed {jid}")
-    lines = [f"✅ Removed from {pub.NAMES[p]}" for p in ok]
-    for p in bad:
-        url = job["published"][p].get("url") or ""
-        lines.append(f"❌ {pub.NAMES[p]}: <code>{previews.esc(res[p])[:250]}</code>\n   Delete it by hand: {previews.esc(url)}")
-    if bad:
-        send_text("\n".join(lines), kb([[("🔁 Try removing again", f"a|unpub|{jid}")]]))
+    if action in ("unpubq", "unpub"):
+        targets = live
     else:
-        previews.notify(f"🗑 <b>{nice_date(job['date'])} removed everywhere.</b>\n" + "\n".join(lines))
-
+        p = FROM_KEY.get(action[-1]); targets = [p] if p in live else []
+    if not targets:
+        previews.notify(f"ℹ️ {nice_date(job['date'])}: nothing to remove there (already removed or never posted)."); return
+    names = ", ".join(pub.NAMES[p] for p in targets)
+    if action == "unpubq" or action.startswith("rmq"):
+        do = "unpub" if action == "unpubq" else "rm" + action[-1]
+        send_text(f"🗑 <b>Remove {nice_date(job['date'])} from {names}?</b>\n"
+                  f"This deletes the post with its views, likes and comments. It can't be undone.",
+                  kb([[(f"✅ Yes, remove from {names}" if len(targets) == 1 else "✅ Yes, remove everywhere", f"a|{do}|{jid}")],
+                      [("✖️ No, keep it", f"a|unpubno|{jid}")]]))
+        return
+    res = pub.remove_all(job, targets)
+    refresh_post_status(job)
+    log_event(job, "removed", res); save_job(job); git_commit(f"removed {jid} {','.join(targets)}")
+    bad = [p for p, v in res.items() if v != "removed"]
+    note = "" if not bad else "Some removals failed — open the link and delete it by hand, or try again."
+    for p in bad:
+        job["published"][p]["error"] = "remove failed: " + res[p]
+    post_card(job, note)
 
 # ---------------- buttons ----------------
 def act(action, jid, text):
@@ -500,15 +548,22 @@ def act(action, jid, text):
     if action in ("keepall", "keepno"):
         act_keep(job, action == "keepall")
         return
-    if action in ("unpubq", "unpub", "unpubno"):
+    if action in ("unpubq", "unpub", "unpubno") or re.fullmatch(r"rmq?[ify]", action):
         act_remove(job, action)
         return
-    if action == "repost":
-        if job["status"] == "post_failed":
-            job["status"] = "approved"; publish(job, "Retry.")
-            save_job(job); git_commit(f"repost {jid}")
-        else:
-            previews.notify(f"ℹ️ {nice_date(job['date'])} is {job['status'].replace('_', ' ')} — nothing to retry.")
+    if action == "pman":
+        post_card(job); return
+    if action == "repost" or re.fullmatch(r"rp[ify]", action):
+        import publish as pub
+        _, _, failed = post_state(job)
+        only = failed if action == "repost" else [FROM_KEY[action[-1]]]
+        only = [p for p in only if p in failed]
+        if not only:
+            previews.notify(f"ℹ️ {nice_date(job['date'])}: nothing to retry there."); return
+        pub.publish_all(job, only)
+        refresh_post_status(job); log_event(job, "repost", only)
+        save_job(job); git_commit(f"repost {jid} {','.join(only)}")
+        post_card(job, "Retried " + ", ".join(pub.NAMES[p] for p in only) + ".")
         return
     if job["status"] in ("ready_to_post", "published", "posting", "post_failed", "removed") or (job["status"] == "approved" and action != "vok"):
         previews.notify(f"⚠️ {nice_date(job['date'])} is already {job['status'].replace('_', ' ')}; no changes made.")
@@ -650,6 +705,7 @@ if __name__ == "__main__":
         elif a == "access": act_access(t)
         elif a == "aitest": act_aitest()
         elif a == "voicecheck": act_voicecheck()
+        elif a == "posted": act_posted()
         elif a == "connectcheck":
             import publish as pub
             lines = pub.check_accounts(); print("\n".join(lines))

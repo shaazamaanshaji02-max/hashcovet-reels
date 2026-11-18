@@ -3,7 +3,7 @@ name: bot
 on:
   workflow_dispatch:
     inputs:
-      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck|unpubq|unpub|unpubno|rp*|rmq*|rm*|pman|posted|open|vtime|settime|celebrations|health|remake|fetchmusic|report|reportauto|crash|redeploy", required: true, default: "new" }
+      action: { description: "daily|remind|publish|new|plan|status|linkgroup|access|aitest|keepall|keepno|vundo|voicecheck|sok|sch|vok|vcap|vtag|vch|repost|connectcheck|unpubq|unpub|unpubno|rp*|rmq*|rm*|pman|posted|open|vtime|settime|celebrations|health|remake|fetchmusic|report|reportauto|crash|redeploy|vreport", required: true, default: "new" }
       job:    { description: "job id", required: false, default: "" }
       text:   { description: "instruction / new caption / hashtags / topic hint", required: false, default: "" }
 permissions:

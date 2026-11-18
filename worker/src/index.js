@@ -13,7 +13,7 @@ const PROMPTS = {
 };
 const HELP = `📖 hashcovet reels — how to use
 
-🔁 EVERY REEL GOES: script → you approve → video is made → you approve video + caption → it posts (Instagram, Facebook, YouTube Shorts)
+🔁 Script → you approve → video → you approve → posts to Instagram, Facebook, YouTube
 
 ⏰ AUTOMATIC
 • 06:00 — today's script is sent here
@@ -24,11 +24,11 @@ const HELP = `📖 hashcovet reels — how to use
 💬 COMMANDS (tap ☰ Menu)
 /status — upcoming reels with their posting time
 /new — one extra reel on the next free day (add a topic: /new lighting tips)
-/plan 30 — scripts for the next 30 days (max 62); each still needs your approval
+/plan 30 — scripts for 30 days (max 62), each needs approval
 /time — see the default posting time · /time 18:30 changes it for ALL reels · /time celebration 08:00 for festival reels
 /posted — everything that went out, with links + ⚙️ Manage
 /accounts — which Instagram / Facebook / YouTube accounts it posts to (posts nothing)
-/report — analytics now: /report day · /report week · /report month (auto every night 9:30 PM; weekly on Sunday; monthly on the last day)
+/report — analytics: /report day · week · month (auto 9:30 PM; weekly Sun; monthly last day). Each reel also gets its own 📊 Video report (auto at 1 day and 7 days; or tap it under the reel / in /posted)
 /health — check everything is working (also runs every morning at 6 and tells you only if something is wrong)
 
 🩺 IF SOMETHING IS WRONG (6 AM report, /health, or an instant "crashed" alert)
@@ -57,7 +57,7 @@ It also watches GitHub free minutes (2,000/month) and storage.
 🔘 UNDER A VIDEO
 ✅ Approve video — it posts at its time
 📝 Edit caption · #️⃣ Edit hashtags — type the exact text
-🤖 Change video with AI — text, voice or layout (add "for all videos" to keep it)
+🤖 Change video with AI — text, voice or layout ("for all videos" keeps it)
 ✍️ Edit script myself — re-made with exactly your lines
 🎵 Music & sounds — pick the track or no music, music / effects louder or quieter, hear the tracks, then Apply
 🕒 Posting time — same as above
@@ -75,9 +75,9 @@ Every delete asks "Yes / No" first — a deleted post can't come back.
 /aitest — check the AI writers
 
 🧠 Every change you ask for becomes a rule for future reels.
-✍️ To type something: tap the button, then REPLY to the message the bot sends.`;
+✍️ To type: tap the button, then REPLY to the bot's message.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", crash: "🔎 Reading the error…", redeploy: "🔧 Restarting…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", crash: "🔎 Reading the error…", vreport: "📊 Building the video report…", redeploy: "🔧 Restarting…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));

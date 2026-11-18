@@ -243,6 +243,7 @@ def post_card(job, note=""):
         if len(failed) > 1:
             rows.append([("🔁 Retry all failed", f"a|repost|{j}")])
     if live:
+        rows.append([("📊 Video report", f"a|vreport|{j}")])
         rows.append([(f"🗑 {pub.NAMES[p].split()[0]}", f"a|rmq{KEY[p]}|{j}") for p in live])
         if len(live) > 1:
             rows.append([("🗑 Remove from all", f"a|unpubq|{j}")])
@@ -263,7 +264,7 @@ def act_posted():
         links = " · ".join(f'<a href="{previews.esc(job["published"][p].get("url", ""))}">{pub.NAMES[p].split()[0]}</a>'
                            for p in live if job["published"][p].get("url"))
         send_text(f"<b>{nice_date(job['date'])}</b> — {previews.esc(job['spec'].get('topic', ''))}\n{icons}\n{links}",
-                  kb([[("⚙️ Manage (retry / remove)", f"a|pman|{job['id']}")]]))
+                  kb([[("📊 Video report", f"a|vreport|{job['id']}"), ("⚙️ Manage", f"a|pman|{job['id']}")]]))
 
 
 # ---------------- scheduled ----------------
@@ -908,6 +909,9 @@ def act(action, jid, text):
         return
     if action == "vtime":
         act_vtime(job, text); return
+    if action == "vreport":
+        import analytics
+        analytics.video_report(jid); git_commit("analytics snapshot", extra=("data/analytics",)); return
     if action == "remake":
         act_remake(job); return
     if action == "pman":
@@ -1079,6 +1083,9 @@ if __name__ == "__main__":
             n = ist_now(); analytics.send("day")
             if n.weekday() == 6: analytics.send("week")
             if n.day == calendar.monthrange(n.year, n.month)[1]: analytics.send("month")
+            for jid in analytics.due_video_reports():   # each reel: deep report at 1 day and 7 days old
+                try: analytics.video_report(jid)
+                except Exception as ex: print("video report failed", jid, ex)
             git_commit("analytics snapshot", extra=("data/analytics",))
         elif a == "fetchmusic": act_fetchmusic()
         elif a == "crash": act_crash(t or j)

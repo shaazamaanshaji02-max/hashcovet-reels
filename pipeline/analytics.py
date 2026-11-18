@@ -463,3 +463,189 @@ if __name__ == "__main__":
         send(sys.argv[2])
     else:
         print(json.dumps(collect(), indent=1)[:3000])
+
+
+# ---------------- per-video deep report ----------------
+def yt_video_deep(vid, published):
+    """Everything YouTube Analytics can tell about ONE video (needs yt-analytics.readonly)."""
+    h = {"Authorization": f"Bearer {pub._yt_token()}"}
+    base = {"ids": "channel==MINE", "startDate": published, "endDate": ist_now().date().isoformat(), "filters": f"video=={vid}"}
+
+    def yt(**kw):
+        r = _get("https://youtubeanalytics.googleapis.com/v2/reports", headers=h, params={**base, **kw})
+        return None if "_error" in r else r.get("rows") or []
+    out = {}
+    tot = yt(metrics="views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,dislikes,comments,shares,subscribersGained,subscribersLost")
+    if tot is None:
+        return None
+    if tot:
+        out["totals"] = dict(zip(["views", "watch_min", "avg_view_s", "avg_pct", "likes", "dislikes", "comments", "shares",
+                                  "subs_gained", "subs_lost"], tot[0]))
+    ret = yt(dimensions="elapsedVideoTimeRatio", metrics="audienceWatchRatio,relativeRetentionPerformance")
+    if ret:
+        out["retention"] = [(r[0], r[1], r[2]) for r in ret]
+    ag = yt(dimensions="ageGroup,gender", metrics="viewerPercentage")
+    if ag:
+        ages, gen = {}, {}
+        for a, g, v in ag:
+            ages[a.replace("age", "")] = ages.get(a.replace("age", ""), 0) + v; gen[g] = gen.get(g, 0) + v
+        out["age"] = sorted(ages.items(), key=lambda x: -x[1]); out["gender"] = sorted(gen.items(), key=lambda x: -x[1])
+    for key, dim in (("device", "deviceType"), ("country", "country"), ("traffic", "insightTrafficSourceType"),
+                     ("os", "operatingSystem"), ("subscribed", "subscribedStatus")):
+        rows = yt(dimensions=dim, metrics="views,averageViewDuration", sort="-views", maxResults=6)
+        if rows:
+            out[key] = [(r[0], r[1], r[2]) for r in rows]
+    day = yt(dimensions="day", metrics="views", sort="day")
+    if day:
+        out["by_day"] = [(r[0], r[1]) for r in day]
+    return out
+
+
+def ig_reel_deep(mid, tok):
+    m = ig_metrics(mid, tok)
+    extra = _get(f"{pub.GRAPH}/{mid}/insights", params={"metric": "profile_visits,follows,profile_activity", "access_token": tok})
+    for d in extra.get("data", []):
+        v = (d.get("values") or [{}])[0].get("value", d.get("total_value", {}).get("value"))
+        if isinstance(v, (int, float)):
+            m[d["name"]] = v
+    info = _get(f"{pub.GRAPH}/{mid}", params={"fields": "permalink,timestamp,media_product_type", "access_token": tok})
+    m["permalink"] = info.get("permalink")
+    return m
+
+
+def _retention_chart(ret, title):
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception:
+        return None
+    x = [r[0] * 100 for r in ret]; y = [r[1] * 100 for r in ret]
+    fig, ax = plt.subplots(figsize=(9, 4.5), dpi=120)
+    ax.plot(x, y, color="#BA1A58", lw=2.5); ax.fill_between(x, y, color="#BA1A58", alpha=.15)
+    ax.set_xlabel("% of the video"); ax.set_ylabel("% of viewers still watching"); ax.set_title(title)
+    ax.set_ylim(0, max(110, max(y) + 10)); ax.spines[["top", "right"]].set_visible(False); ax.grid(alpha=.2)
+    plt.tight_layout()
+    out = ROOT / "build" / "retention.png"; out.parent.mkdir(exist_ok=True); fig.savefig(out); plt.close(fig)
+    return out
+
+
+def video_report(jid):
+    """📊 One reel, every number available, per platform + how it compares with the other reels + AI reading."""
+    from common import kb, send_text, tg, chat_id, load_job
+    from previews import esc
+    j = load_job(jid); pubd = j.get("published") or {}
+    live = {p: r for p, r in pubd.items() if r.get("id") and not r.get("removed")}
+    if not live:
+        send_text(f"ℹ️ {nice_date(j['date'])} isn't posted anywhere yet."); return
+    tok = os.environ.get("META_PAGE_TOKEN"); published = post_time(j).date().isoformat()
+    age_h = (ist_now() - post_time(j)).total_seconds() / 3600
+    f = _feature(j)
+    L = [f"📊 <b>Video report — {nice_date(j['date'])}</b>", f"<i>{esc(j['spec'].get('topic', ''))}</i>",
+         f"Posted {post_time(j).strftime('%a %d %b, %I:%M %p')} ({int(age_h // 24)} d {int(age_h % 24)} h ago) · "
+         f"{f['kind']} · hook: {esc(f['hook'])} · music: {esc(f['music'])}"]
+    data = {"reel": f, "platforms": {}}
+    chart = None
+    if "instagram" in live and tok:
+        m = ig_reel_deep(live["instagram"]["id"], tok); data["platforms"]["instagram"] = m
+        L += ["", "📸 <b>Instagram</b>"]
+        L.append(" · ".join(f"{lab} {_fmt(m.get(k))}" for k, lab in (("views", "views"), ("reach", "reach"), ("likes", "likes"),
+                 ("comments", "comments"), ("shares", "shares"), ("saves", "saves")) if m.get(k) is not None))
+        if m.get("avg_watch_s") is not None:
+            L.append(f"⏱ Avg watch {m['avg_watch_s']}s per view · total {_fmt(m.get('watch_min'))} min watched")
+        if m.get("profile_visits") is not None or m.get("follows") is not None:
+            L.append(f"👤 Profile visits {_fmt(m.get('profile_visits'))} · new follows {_fmt(m.get('follows'))}")
+        if m.get("views"):
+            eng = sum(m.get(k) or 0 for k in ("likes", "comments", "shares", "saves"))
+            L.append(f"📈 Engagement {eng / m['views'] * 100:.1f}% · save+share {((m.get('saves') or 0) + (m.get('shares') or 0)) / m['views'] * 100:.2f}%"
+                     + (f" · reach→view ratio {m['views'] / m['reach']:.2f}" if m.get("reach") else ""))
+    if "facebook" in live and tok:
+        m = fb_metrics(live["facebook"]["id"], tok); m.pop("_missing", None); data["platforms"]["facebook"] = m
+        L += ["", "📘 <b>Facebook</b>",
+              " · ".join(f"{lab} {_fmt(m.get(k))}" for k, lab in (("views", "plays"), ("reach", "reach"), ("likes", "reactions"),
+                         ("comments", "comments")) if m.get(k) is not None) or "no numbers yet"]
+        if m.get("avg_watch_s") is not None:
+            L.append(f"⏱ Avg watch {m['avg_watch_s']}s · total {_fmt(m.get('watch_min'))} min")
+    if "youtube" in live and os.environ.get("YT_REFRESH_TOKEN"):
+        vid = live["youtube"]["id"]
+        basic = yt_metrics(vid, pub._yt_token(), published); basic.pop("_missing", None)
+        deep = yt_video_deep(vid, published)
+        data["platforms"]["youtube"] = {"basic": basic, "deep": deep}
+        L += ["", "▶️ <b>YouTube Shorts</b>",
+              f"views {_fmt(basic.get('views'))} · likes {_fmt(basic.get('likes'))} · comments {_fmt(basic.get('comments'))}"]
+        if deep:
+            t = deep.get("totals") or {}
+            if t:
+                L.append(f"⏱ Avg watch {t['avg_view_s']:.0f}s per view = {t['avg_pct']:.0f}% of the video · "
+                         f"{_fmt(round(t['watch_min']))} min watched · shares {t['shares']} · subscribers +{t['subs_gained']}/-{t['subs_lost']}")
+            r = deep.get("retention")
+            if r:
+                def at(p):
+                    return min(r, key=lambda x: abs(x[0] - p))[1] * 100
+                drop = min(range(1, len(r)), key=lambda i: r[i][1] - r[i - 1][1]) if len(r) > 2 else None
+                L.append(f"📉 Still watching: at 25% {at(.25):.0f}% · at 50% {at(.5):.0f}% · at 75% {at(.75):.0f}% · end {at(1):.0f}%"
+                         + (f" · biggest drop around {r[drop][0] * 100:.0f}% of the video" if drop else ""))
+                rel = statistics.mean(x[2] for x in r if x[2] is not None) if any(x[2] for x in r) else None
+                if rel is not None:
+                    L.append(f"   vs similar YouTube Shorts: {'above' if rel > .55 else 'below' if rel < .45 else 'about'} average retention")
+                chart = _retention_chart(r, f"Who keeps watching — {nice_date(j['date'])}")
+            for key, lab in (("age", "🎂 Age"), ("gender", "⚧ Gender")):
+                if deep.get(key):
+                    L.append(f"{lab}: " + " · ".join(f"{k} {v:.0f}%" for k, v in deep[key][:5]))
+            for key, lab in (("device", "📱 Devices"), ("os", "💻 Systems"), ("country", "🌍 Countries"),
+                             ("traffic", "🧭 Found via"), ("subscribed", "👥 Subscribers vs not")):
+                if deep.get(key):
+                    L.append(f"{lab}: " + _share([(x[0], x[1]) for x in deep[key]]) +
+                             (" (avg watch " + ", ".join(f"{_share([(x[0], 1)], 1).split()[0]} {x[2]:.0f}s" for x in deep[key][:3]) + ")"
+                              if key in ("device", "subscribed") else ""))
+            if deep.get("by_day") and len(deep["by_day"]) > 1:
+                L.append("📅 Views by day: " + " · ".join(f"{d[5:]} {_fmt(v)}" for d, v in deep["by_day"][-7:]))
+        else:
+            L.append("ℹ️ Watch time, retention, age, device, country: needs YouTube Analytics permission")
+    # compare with every other posted reel
+    try:
+        snap = collect(); reels = snap["reels"]
+        def tv(i):
+            return _sum(reels, [i], "views") or _sum(reels, [i], "likes")
+        others = sorted(reels, key=tv, reverse=True)
+        if jid in others and len(others) > 1:
+            rank = others.index(jid) + 1
+            avg = statistics.mean(tv(i) for i in others if i != jid) or 1
+            L += ["", f"🏁 Rank <b>#{rank} of {len(others)}</b> reels by views · {tv(jid) / avg * 100:.0f}% of the average reel"]
+            data["rank"] = {"rank": rank, "of": len(others), "vs_avg_pct": round(tv(jid) / avg * 100)}
+    except Exception as e:
+        print("compare failed:", e)
+    if age_h < 24:
+        L.append("⏳ Under 24 h old — numbers are still climbing.")
+    # AI reading for this one video
+    try:
+        import llm
+        o, _ = llm.chat_json("You read real video metrics and give careful, specific advice. Output only JSON.",
+                             "Analyse ONE short video of HASHCOVET (video production studio) from these REAL numbers. "
+                             "3 insights (why it may have done well/poorly: hook, retention drop point, audience, platform, "
+                             "posting time, music) + 3 concrete fixes for the next video. Only these numbers; contributory "
+                             f"wording; say if it's too early.\nDATA: {json.dumps(data, ensure_ascii=False, default=str)[:8000]}\n"
+                             'Return JSON: {"insights": [...], "actions": [...]}',
+                             lambda o: [] if isinstance(o.get("insights"), list) and isinstance(o.get("actions"), list) else ["bad"])
+        L += ["", "🤖 <b>AI reading</b>"] + [f"• {esc(x)}" for x in o["insights"][:3]] + ["", "✅ <b>Next video</b>"] + \
+             [f"→ {esc(x)}" for x in o["actions"][:3]]
+    except Exception as e:
+        print("ai failed:", e)
+    if chart:
+        with open(chart, "rb") as fh:
+            tg("sendPhoto", files={"photo": ("retention.png", fh, "image/png")}, chat_id=chat_id(),
+               caption=f"📉 Retention — {nice_date(j['date'])} (YouTube)")
+    links = [[(f"🔗 {pub.NAMES[p].split()[0]}", r["url"])] for p, r in live.items() if r.get("url")]
+    send_text("\n".join(L), kb(links + [[("🔄 Refresh", f"a|vreport|{jid}"), ("⚙️ Manage", f"a|pman|{jid}")]]))
+
+
+def due_video_reports():
+    """Reels that reached 24 hours or 7 days since posting today -> automatic video report."""
+    now = ist_now(); out = []
+    for j in all_jobs():
+        if not any(r.get("id") and not r.get("removed") for r in (j.get("published") or {}).values()):
+            continue
+        h = (now - post_time(j)).total_seconds() / 3600
+        if 24 <= h < 48 or 168 <= h < 192:
+            out.append(j["id"])
+    return out

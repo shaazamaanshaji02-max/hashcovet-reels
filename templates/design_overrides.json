@@ -1,1 +1,3 @@
-{}
+{
+  "css": "#logoTL { top: 200px !important; } #socTR { top: 200px !important; } #wmLogo { top: 20px !important; right: 20px !important; left: auto !important; width: 140px !important; height: auto !important; } #wmWeb { top: auto !important; bottom: 20px !important; left: 50% !important; transform: translateX(-50%) !important; right: auto !important; }"
+}

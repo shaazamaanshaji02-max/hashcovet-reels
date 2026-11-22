@@ -27,7 +27,10 @@ def write_new(topic_hint=None):
     except Exception as ex:
         print("research failed, writing without it:", ex)
         rb = {}
-    user = f"""Write today's reel.
+    from suggestions import next_video_notes
+    nv = next_video_notes()
+    nv_txt = ("\nFor THIS reel only, the team asked (follow these exactly):\n- " + "\n- ".join(nv) + "\n") if nv else ""
+    user = f"""Write today's reel.{nv_txt}
 {"The approver asked for THIS subject/niche (it may be completely different from video production — write fully about it, do not pull it back to video production): " + topic_hint if topic_hint else "Default niche pillars: " + json.dumps(CFG['content']['pillars'])}
 Research brief (base the reel on it: use its best_topic or a stronger angle, pick or improve its strongest hook,
 choose hashtags from its sets, put its keywords in the caption's first line and keywords field):

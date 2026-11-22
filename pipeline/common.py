@@ -36,8 +36,11 @@ def save_job(job):
 
 
 def log_event(job, kind, detail):
-    job.setdefault("history", []).append(
-        {"at": datetime.datetime.utcnow().isoformat() + "Z", "kind": kind, "detail": detail})
+    e = {"at": datetime.datetime.utcnow().isoformat() + "Z", "kind": kind, "detail": detail}
+    w = (os.environ.get("WHO") or "").strip()
+    if w:
+        e["by"] = w
+    job.setdefault("history", []).append(e)
 
 
 # ---------------- learnings memory ----------------
@@ -51,17 +54,20 @@ def learnings_text():
     rules = learnings()
     if not rules:
         return "(none yet)"
-    return "\n".join(f"- {r['rule']}" for r in rules)
+    return "\n".join(f"- {r['rule']}" for r in rules) + (
+        "\n(These come from everyone on the team — follow all of them equally.)")
 
 
-def add_learning(rule, source, jid):
+def add_learning(rule, source, jid, by=None):
     if not rule or not rule.strip():
         return False
     rules = learnings()
     norm = rule.strip().lower().rstrip(".")
     if any(r["rule"].strip().lower().rstrip(".") == norm for r in rules):
         return False
-    rules.append({"rule": rule.strip(), "source": source, "job": jid,
+    if by is None:
+        by = (os.environ.get("WHO") or "").strip()
+    rules.append({"rule": rule.strip(), "source": source, "job": jid, "by": by,
                   "at": datetime.datetime.utcnow().isoformat() + "Z"})
     LEARN.parent.mkdir(parents=True, exist_ok=True)
     LEARN.write_text(json.dumps(rules, indent=2, ensure_ascii=False))

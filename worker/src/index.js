@@ -5,6 +5,9 @@
 // Stateless: edit prompts are sent as force-reply messages tagged with #job and #act; the reply carries them back.
 
 const PROMPTS = {
+  sgo: "➕ Type what you want to ADD to the bot's suggestion (both will be used).",
+  sgm: "✏️ Type YOUR instruction (used instead of the bot's suggestion).",
+  radd: "➕ Type the rule to use for ALL future videos (applies to everyone on the team).",
   vtime: "🕒 When should this reel post? Send a time like 18:30 or 6:30 pm, or a date + time like 25 Dec 9:00 / tomorrow 9am (India time). Send 'default' for the normal time. Posts go out within 15 minutes of that time.",
   sch: "🤖 What should the AI change in the SCRIPT?",
   vcap: "📝 Send the NEW CAPTION exactly as it should be posted (no hashtags).",
@@ -72,12 +75,16 @@ Every delete asks "Yes / No" first — a deleted post can't come back.
 
 🔒 OWNER ONLY
 /allow or /remove — reply to someone's message to give / take access · /members — who has access
+
+👥 TEAM RULES — an instruction from anyone in the group counts for everyone
+/rules — see all team rules (with who gave them), 🗑 remove one, ➕ add one for all videos
+💡 When the bot suggests something: ✅ Apply · ➕ Apply + add mine · ✏️ Mine instead · ❌ Skip — then choose ⏭ Next video only or ♾ All future videos
 /aitest — check the AI writers
 
 🧠 Every change you ask for becomes a rule for future reels.
 ✍️ To type: tap the button, then REPLY to the bot's message.`;
 
-const ACK = { sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", crash: "🔎 Reading the error…", vreport: "📊 Building the video report…", redeploy: "🔧 Restarting…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
+const ACK = { sgy: "✅ Applying…", sgx: "❌ Skipped.", sgn: "⏭ Next video only…", sga: "♾ All future videos…", rdel: "🗑 Removing…", sok: "✅ Script approved — producing video…", vok: "✅ Video approved.", keepall: "✅ Saving for all future videos…", vundo: "↩️ Undoing the last change…", repost: "🔁 Retrying the failed posts…", unpub: "🗑 Removing…", unpubq: "Confirm below 👇", rmi: "🗑 Removing…", rmf: "🗑 Removing…", rmy: "🗑 Removing…", rmqi: "Confirm below 👇", rmqf: "Confirm below 👇", rmqy: "Confirm below 👇", rpi: "🔁 Retrying…", rpf: "🔁 Retrying…", rpy: "🔁 Retrying…", remake: "🔁 Remaking…", fetchmusic: "🎵 Downloading…", health: "🩺 Checking…", connectcheck: "🔌 Checking…", aitest: "🧪 Testing…", voicecheck: "🎙 Retrying voice…", posted: "📋 Loading…", report: "📊 Building the report…", crash: "🔎 Reading the error…", vreport: "📊 Building the video report…", redeploy: "🔧 Restarting…", pman: "⚙️ Opening…", keepno: "👍 Only this video.", smanq: "✍️ Sending your editable script…", vmanq: "✍️ Sending your editable script…" };
 
 async function hookSecret(env) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hc-hook:" + env.TELEGRAM_BOT_TOKEN));
@@ -154,12 +161,14 @@ async function tg(env, method, body) {
   return r.json();
 }
 
+let WHO = "";   // name of the person who pressed / typed (set per Telegram update) — every instruction is shared by the team
+
 async function dispatch(env, action, job = "", text = "") {
   const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/bot.yml/dispatches`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: "application/vnd.github+json",
                "user-agent": "hashcovet-bot", "content-type": "application/json" },
-    body: JSON.stringify({ ref: "main", inputs: { action, job, text: text.slice(0, 4000) } }),
+    body: JSON.stringify({ ref: "main", inputs: { action, job, text: text.slice(0, 4000), who: WHO.slice(0, 60) } }),
   });
   if (r.status !== 204 && r.status !== 200) throw new Error(`GitHub dispatch ${r.status}: ${await r.text()}`);
 }
@@ -201,6 +210,7 @@ const CRON_ACTION = {
 
 export default {
   async scheduled(event, env, ctx) {
+    WHO = "";
     // Free plan allows few cron triggers, so one "*/15 * * * *" trigger runs and we match the UTC time here.
     const d = new Date(event.scheduledTime);
     const key = `${d.getUTCMinutes()} ${d.getUTCHours()} * * *`;
@@ -236,6 +246,7 @@ export default {
         { command: "accounts", description: "Which accounts it posts to" },
         { command: "health", description: "Check everything is working" },
         { command: "report", description: "Analytics: day / week / month" },
+        { command: "rules", description: "Team rules used for every video" },
         { command: "help", description: "How to use the bot" } ] });
       return new Response(JSON.stringify({ webhook: r.ok, description: r.description }));
     }
@@ -245,6 +256,8 @@ export default {
     const u = await req.json();
     const chat = String(u.callback_query?.message?.chat?.id ?? u.message?.chat?.id ?? "");
     const from = String(u.callback_query?.from?.id ?? u.message?.from?.id ?? "");
+    const fu = u.callback_query?.from ?? u.message?.from ?? {};
+    WHO = [fu.first_name, fu.last_name].filter(Boolean).join(" ").replace(/[^\p{L}\p{N} .'-]/gu, "").trim();
     // Link a group: the approver adds the bot to a group and sends /linkgroup there.
     if (u.message?.text?.startsWith("/linkgroup") && from === String(env.APPROVER_CHAT_ID) && chat.startsWith("-")) {
       try { await dispatch(env, "linkgroup", "", chat); }
@@ -339,6 +352,8 @@ export default {
       } else if (m.text.startsWith("/aitest")) {
         await dispatch(env, "aitest");
         await tg(env, "sendMessage", { chat_id: chat, text: "🧪 Checking every AI writer… (~1 min)" });
+      } else if (m.text.startsWith("/rules")) {
+        await dispatch(env, "rules");
       } else if (m.text.startsWith("/status")) {
         await dispatch(env, "status");
       } else if (m.text.startsWith("/new")) {

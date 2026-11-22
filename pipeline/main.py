@@ -115,7 +115,7 @@ def change_requests(job):
     for e in job.get("history", []):
         d = e.get("detail") or {}
         if e.get("kind") in ("video_change", "script_changed") and isinstance(d, dict) and d.get("instruction"):
-            out.append(d["instruction"])
+            out.append(d["instruction"] + (f" (asked by {e['by']})" if e.get("by") else ""))
         elif e.get("kind") == "manual_edit" and isinstance(d, dict):
             out.append("Edited by hand: " + ", ".join(d.get("changed", [])[:6]))
         elif e.get("kind") in ("caption_edited", "hashtags_edited") and isinstance(d, dict):
@@ -132,7 +132,8 @@ def ask_keep_for_all(job):
     lines = "\n".join(f"• {previews.esc(r[:140])}" for r in reqs[-8:])
     previews.send_text(
         f"🙌 You put real work into <b>{nice_date(job['date'])}</b> — {len(reqs)} change(s):\n{lines}\n\n"
-        f"<b>Should these changes apply to ALL future videos?</b> Then you won't have to ask again.",
+        f"<b>Should these changes apply to ALL future videos?</b> They'll count for everyone on the team, "
+        f"so nobody has to ask again.",
         previews.kb([[("✅ Yes, all future videos", f"a|keepall|{job['id']}")],
                      [("Only this video", f"a|keepno|{job['id']}")]]))
 
@@ -173,6 +174,11 @@ def new_job(date, hint=None, batch=False, kind=None, jid=None):
     if kind:
         job["kind"] = kind
     log_event(job, "script_written", prov)
+    import suggestions
+    used = suggestions.consume_next_video_notes(job["id"])
+    if used:
+        job["team_notes_used"] = [n["text"] for n in used]
+        log_event(job, "next_video_notes_used", used)
     add_topic(spec["topic"])
     save_job(job)
     return job
@@ -1104,6 +1110,14 @@ if __name__ == "__main__":
             import publish as pub
             lines = pub.check_accounts(); print("\n".join(lines))
             previews.notify("🔌 <b>Posting accounts</b>\n" + "\n".join(previews.esc(x) for x in lines))
+        elif a in ("sgy", "sgo", "sgm", "sgx", "sgn", "sga"):
+            import suggestions; suggestions.act(a, j, t)
+        elif a == "rules":
+            import suggestions; suggestions.show_rules()
+        elif a == "rdel":
+            import suggestions; suggestions.remove_rule(j)
+        elif a == "radd":
+            import suggestions; suggestions.add_rule(t)
         else: act(a, j, t)
     except Exception as ex:
         traceback.print_exc()

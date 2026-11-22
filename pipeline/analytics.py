@@ -423,6 +423,9 @@ def _chart(ids, reels, jobs, period):
     return out
 
 
+LAST_ACTIONS = []
+
+
 def ai_reading(data):
     """3-5 insights + 3 actions from the numbers only (no invented figures)."""
     import llm
@@ -440,6 +443,8 @@ def ai_reading(data):
     except Exception as e:
         return f"\n🤖 (AI reading unavailable: {str(e)[:80]})"
     from previews import esc
+    global LAST_ACTIONS
+    LAST_ACTIONS = list(o["actions"][:3])
     return ("\n\n🤖 <b>AI reading of the numbers</b>\n" + "\n".join(f"• {esc(x)}" for x in o["insights"][:5]) +
             "\n\n✅ <b>Try next</b>\n" + "\n".join(f"→ {esc(x)}" for x in o["actions"][:3]))
 
@@ -456,6 +461,9 @@ def send(period="day"):
             tg("sendPhoto", files={"photo": ("chart.png", f, "image/png")}, chat_id=chat_id(),
                caption=f"📊 Views per reel — {period}")
     send_text(text, kb([[("📅 Today", "a|report|day"), ("🗓 This week", "a|report|week"), ("📆 This month", "a|report|month")]]))
+    if LAST_ACTIONS:
+        import suggestions
+        suggestions.offer(LAST_ACTIONS, f"{period} report")
 
 
 if __name__ == "__main__":

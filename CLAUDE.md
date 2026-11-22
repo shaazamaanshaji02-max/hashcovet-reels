@@ -81,7 +81,8 @@ post_failed → removed. (`ready_to_post` only if no platform is connected.)
 | Design (Hashcovet look) | `templates/reel.html`, fonts in `assets/fonts/`; approver layout changes for all reels in `templates/design_overrides.json` |
 | Actions router | `pipeline/main.py` — commands: daily remind publish new plan status posted health settime connectcheck aitest voicecheck celebrations fetchmusic linkgroup access report reportauto vreport crash redeploy rules rdel radd; buttons: sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno vundo · vtime open remake · aud at<N> atA at0 amd amu asd asu aso ahear aok adef · sgy sgo sgm sgx sgn sga (suggestions) · pman repost rpi rpf rpy unpubq unpub unpubno rmq<i/f/y> rm<i/f/y>. New force-reply prompts go in worker PROMPTS; new action names in bot.yml's description list |
 | Per-reel history (every version/edit) | `jobs/<id>/job.json` |
-| Learned rules / used topics | `memory/learnings.json`, `memory/topics_used.json` |
+| Learned rules / used topics | `memory/learnings.json` (TEAM rules, each with `by`), `memory/topics_used.json` |
+| Bot suggestions + next-video-only notes | `pipeline/suggestions.py`, `data/suggestions.json`, `memory/next_video.json`; `/rules` in Telegram |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
 | Videos | GitHub Actions artifacts of `produce` runs (30 days) + Telegram |
 | Posting to IG / FB / YouTube | `pipeline/publish.py` (+ `config.json publish`) |

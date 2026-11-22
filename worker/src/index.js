@@ -305,7 +305,7 @@ export default {
         }
         await tg(env, "answerCallbackQuery", { callback_query_id: u.callback_query.id, text: ACK[act] || "OK" });
         if (PROMPTS[act]) {
-          await tg(env, "sendMessage", { chat_id: chat, text: `${PROMPTS[act]}\n\n#job:${job} #act:${act}\n(reply to this message)`,
+          await tg(env, "sendMessage", { chat_id: chat, text: `${PROMPTS[act]}\n\n#job:${job || "-"} #act:${act}\n(reply to this message)`,
                                          reply_markup: { force_reply: true, input_field_placeholder: "Type here…" } });
         } else {
           await dispatch(env, act, job);
@@ -317,10 +317,12 @@ export default {
       if (!m?.text) return new Response("ok");
       m.text = m.text.replace(/^(\/\w+)@\w+/, "$1");
       const replyTo = m.reply_to_message?.text || "";
-      const job = replyTo.match(/#job:(\S+)/)?.[1], act = replyTo.match(/#act:(\w+)/)?.[1];
-      if (job && act) {
+      const jobTag = replyTo.match(/#job:(\S+)/)?.[1], act = replyTo.match(/#act:(\w+)/)?.[1];
+      const job = jobTag === "-" ? "" : jobTag;
+      if (jobTag && act) {
         await dispatch(env, act, job, m.text);
-        await tg(env, "sendMessage", { chat_id: chat, text: "⏳ Got it — working on it. A new preview will follow." });
+        await tg(env, "sendMessage", { chat_id: chat, text: job ? "⏳ Got it — working on it. A new preview will follow."
+                                                               : "⏳ Got it — saving it now." });
       } else if (m.text.startsWith("/plan")) {
         const n = parseInt(m.text.replace("/plan", "").trim() || "30", 10);
         await dispatch(env, "plan", "", String(Math.min(Math.max(n || 30, 1), 62)));

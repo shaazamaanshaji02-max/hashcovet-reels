@@ -122,15 +122,15 @@ def _local_cpu(src, ref, work):
         if r.returncode:
             raise RuntimeError("seed-vc download failed: " + (r.stderr or r.stdout)[-200:])
     # Python packages are NOT in the cache (only the tool + model are), so check and install every run.
-    ok = subprocess.run(["python", "-c", "import torch, torchaudio, munch, soundfile, librosa, hydra"],
+    ok = subprocess.run(["python", "-c", "import torch, torchaudio, munch, soundfile, librosa, hydra, dac"],
                         capture_output=True).returncode == 0
     if not ok:
         # CPU-only torch (the default CUDA build is huge and its download often breaks), then the rest
-        subprocess.run(["pip", "install", "-q", "--retries", "5", "torch", "torchaudio",
+        subprocess.run(["pip", "install", "-q", "--no-cache-dir", "--retries", "5", "torch", "torchaudio",
                         "--index-url", "https://download.pytorch.org/whl/cpu"], check=False)
         req = [l.strip() for l in (repo / "requirements.txt").read_text().splitlines()
                if l.strip() and not l.startswith("#") and not l.lower().startswith(("torch", "--"))]
-        subprocess.run(["pip", "install", "-q", "--retries", "5", *req], check=False)
+        subprocess.run(["pip", "install", "-q", "--no-cache-dir", "--retries", "5", *req], check=False)
         subprocess.run(["pip", "install", "-q", "munch", "soundfile"], check=False)
     _patch_seedvc_save(repo)
     outdir = work / "seedvc_out"; outdir.mkdir(exist_ok=True)

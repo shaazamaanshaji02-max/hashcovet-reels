@@ -156,12 +156,33 @@ async function sendPicker(env, chat, job) {
 }
 
 async function tg(env, method, body) {
+  if (method === "sendMessage" && typeof body.text === "string" && body.text.length > 4000) {
+    const parts = splitLong(body.text);
+    let res;
+    for (let i = 0; i < parts.length; i++) {
+      const b = { ...body, text: parts[i] };
+      if (i < parts.length - 1) delete b.reply_markup;   // buttons only under the last part
+      res = await tg(env, method, b);
+    }
+    return res;
+  }
   const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   return r.json();
 }
 
 let WHO = "";   // name of the person who pressed / typed (set per Telegram update) — every instruction is shared by the team
+
+// Telegram rejects messages over 4096 chars — split long texts (e.g. HELP) at blank lines.
+function splitLong(t, max = 3900) {
+  const out = []; let cur = "";
+  for (const para of t.split("\n\n")) {
+    if ((cur + "\n\n" + para).length > max && cur) { out.push(cur); cur = para; }
+    else cur = cur ? cur + "\n\n" + para : para;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
 
 async function dispatch(env, action, job = "", text = "") {
   const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/bot.yml/dispatches`, {

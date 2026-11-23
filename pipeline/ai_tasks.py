@@ -16,6 +16,20 @@ def _v(obj):
     return validate(obj, CFG["content"]["max_hashtags"])
 
 
+def recent_icons(n=6):
+    """Icons used most in the last reels, so new reels pick fresh pictures."""
+    import collections, glob
+    c = collections.Counter()
+    for f in sorted(glob.glob(str(ROOT / "jobs" / "20*" / "job.json")))[-10:]:
+        try:
+            sp = json.load(open(f))["spec"]
+            for t in sp["tips"]:
+                c[t["bad"]["icon"]] += 1; c[t["good"]["icon"]] += 1
+        except Exception:
+            pass
+    return [i for i, _ in c.most_common(n)]
+
+
 def write_new(topic_hint=None):
     """Research first (real search phrases + AI brief), then write. topic_hint may be a whole new niche."""
     import random
@@ -37,6 +51,9 @@ choose hashtags from its sets, put its keywords in the caption's first line and 
 {json.dumps(rb, ensure_ascii=False, indent=1) if rb else "(no research available)"}
 Do NOT repeat these recent topics: {json.dumps(recent)}
 Allowed icons: {", ".join(ICONS)}
+Icons: pick the MOST SPECIFIC icon for each exact mistake and fix (e.g. shaky footage -> gimbal/tripod, harsh light -> softbox,
+echo -> echo, slow site -> gauge, no captions -> subtitles). Use 6 different icons in the reel, and prefer icons NOT in this
+recently over-used list: {json.dumps(recent_icons())}
 Schema:
 {SCHEMA_DOC}"""
     spec, prov = chat_json(system_prompt(), user, _v)

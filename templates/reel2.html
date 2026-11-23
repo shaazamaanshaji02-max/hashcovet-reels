@@ -59,6 +59,71 @@ const LOGO=`<svg width="100%" height="100%" viewBox="0 0 240 86"><defs><linearGr
 
 // icons chosen by the script writer per mistake / fix (same set as the old template)
 const ICON={
+ softbox:'<path d="M4 4h16l-3 9H7z"/><path d="M12 13v8M8 21h8"/><path d="M9 7h6"/>',
+ ringlight:'<circle cx="12" cy="9" r="6"/><circle cx="12" cy="9" r="3"/><path d="M12 15v6M8 21h8"/>',
+ tripod:'<rect x="8" y="3" width="8" height="5" rx="1"/><path d="M12 8v4M12 12l-6 9M12 12l6 9M12 12v9"/>',
+ gimbal:'<rect x="9" y="2" width="6" height="9" rx="1.5"/><path d="M12 11v3M7 14h10M8 14v4a4 4 0 0 0 8 0v-4M12 22v-2"/>',
+ aperture:'<circle cx="12" cy="12" r="9.5"/><path d="M12 2.5l3 7M21.5 12h-7.5M17 20l-4-6.5M7 20l3.5-6.5M2.5 12h7.5M7 4l4 6.5"/>',
+ focus:'<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/>',
+ crop:'<path d="M6 2v16h16M2 6h16v16"/>',
+ sun:'<circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/>',
+ moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/>',
+ shadow:'<circle cx="9" cy="10" r="5"/><path d="M14 20c4 0 7-1.5 7-3s-3-3-7-3"/><path d="M3 20h18"/>',
+ waveform:'<path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h-2"/>',
+ speaker:'<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="6.5" r="1.3"/>',
+ echo:'<path d="M8 8a4 4 0 0 0 0 8M5 5a8 8 0 0 0 0 14M16 8a4 4 0 0 1 0 8M19 5a8 8 0 0 1 0 14"/><circle cx="12" cy="12" r="1.5"/>',
+ music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+ film:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/>',
+ clapper:'<path d="M3 10h18v10H3z"/><path d="M3 10l2-6 16 2-1 4M8 5l2 4M13 5.5l2 4"/>',
+ timeline:'<path d="M2 6h20M2 18h20"/><rect x="4" y="9" width="6" height="6" rx="1"/><rect x="12" y="9" width="8" height="6" rx="1"/><path d="M11 3v18"/>',
+ storyboard:'<rect x="2" y="3" width="9" height="7" rx="1"/><rect x="13" y="3" width="9" height="7" rx="1"/><rect x="2" y="14" width="9" height="7" rx="1"/><rect x="13" y="14" width="9" height="7" rx="1"/>',
+ layers:'<path d="M12 3l10 5-10 5L2 8z"/><path d="M2 13l10 5 10-5"/>',
+ wand:'<path d="M4 20L16 8M14 4v3M18 6h-3M20 10v-3M10 6H7"/>',
+ zoom:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/>',
+ subtitles:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 14h4M12 14h6M6 17h9"/>',
+ slowmo:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l-2 2M9 2h6"/><path d="M4 6l2 2"/>',
+ hourglass:'<path d="M6 2h12M6 22h12M7 2c0 6 10 6 10 10S7 16 7 22M17 2c0 6-10 6-10 10s10 4 10 10"/>',
+ gauge:'<path d="M4 18a9 9 0 1 1 16 0"/><path d="M12 13l4-5"/><circle cx="12" cy="13" r="1.4"/>',
+ palette:'<path d="M12 2a10 10 0 1 0 0 20c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-2 2.5-2H18a4 4 0 0 0 4-4C22 6 17.5 2 12 2z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="6.8" r="1.2"/><circle cx="15" cy="6.8" r="1.2"/>',
+ type:'<path d="M4 7V4h16v3M12 4v16M8 20h8"/>',
+ pen:'<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
+ brush:'<path d="M18 3l3 3-9 9-3-3z"/><path d="M9 12c-3 0-5 2-5 5 0 1-1 2-2 2 3 2 9 1 9-4"/>',
+ crown:'<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+ badge:'<circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 22l5-3 5 3-1.5-8.5"/>',
+ sparkle:'<path d="M12 2c.8 5 3 7.2 8 8-5 .8-7.2 3-8 8-.8-5-3-7.2-8-8 5-.8 7.2-3 8-8z"/><path d="M19 15c.3 2 1 2.7 3 3-2 .3-2.7 1-3 3-.3-2-1-2.7-3-3 2-.3 2.7-1 3-3z"/>',
+ quote:'<path d="M5 18c3 0 5-2.5 5-6V6H4v6h4M15 18c3 0 5-2.5 5-6V6h-6v6h4"/>',
+ target:'<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.5"/>',
+ zap:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+ fire:'<path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-4 5-4 7-1-1-2-2-2-4-2 2-3 5-3 9 0 4 3 7 7 7z"/>',
+ bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+ thumbsup:'<path d="M7 11v10H3V11zM7 11l4-8c2 0 3 1 3 3v4h6c1 0 2 1 2 2l-2 7c0 1-1 2-2 2H7"/>',
+ thumbsdown:'<path d="M7 13V3H3v10zM7 13l4 8c2 0 3-1 3-3v-4h6c1 0 2-1 2-2l-2-7c0-1-1-2-2-2H7"/>',
+ comment:'<path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/>',
+ share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/>',
+ bookmark:'<path d="M6 3h12v18l-6-4.5L6 21z"/>',
+ cursor:'<path d="M5 3l14 7-6 2-2 6z"/><path d="M13 12l6 6"/>',
+ trophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4c0 3 2 5 4 5M16 6h4c0 3-2 5-4 5M12 13v4M8 21h8M10 17h4v4h-4z"/>',
+ flag:'<path d="M5 22V3M5 4h12l-2 4 2 4H5"/>',
+ gift:'<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 13h18M12 9v12M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"/>',
+ box:'<path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/>',
+ percent:'<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+ pie:'<path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 2.5A8 8 0 0 1 21.5 9H15z"/>',
+ bars:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+ trendup:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+ trenddown:'<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>',
+ doc:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/>',
+ check:'<circle cx="12" cy="12" r="9.5"/><path d="M7.5 12.5l3 3 6-7"/>',
+ xcircle:'<circle cx="12" cy="12" r="9.5"/><path d="M8 8l8 8M16 8l-8 8"/>',
+ alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>',
+ question:'<circle cx="12" cy="12" r="9.5"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 1-1 1.7M12 17h.01"/>',
+ link:'<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>',
+ lock:'<rect x="4" y="11" width="16" height="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+ cloud:'<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8z"/>',
+ tablet:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M11 18h2"/>',
+ watch:'<rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-4h4l1 4M9 18l1 4h4l1-4M12 10v2l1.5 1.5"/>',
+ qr:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v7h-4M14 18v3"/>',
+ handshake:'<path d="M2 11l4-4 4 2 4-3 4 3 4 4-6 6-3-2-2 2-3-2z"/><path d="M10 9l3 3"/>',
+ compass:'<circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
  globe:'<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c3 3.2 3 15.8 0 19M12 2.5c-3 3.2-3 15.8 0 19"/>',
  code:'<path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
  rocket:'<path d="M12 2c4 3 5 8 3 13H9C7 10 8 5 12 2z"/><circle cx="12" cy="9" r="2"/><path d="M9 15l-3 3 1 3 3-2M15 15l3 3-1 3-3-2"/>',
@@ -140,15 +205,15 @@ function typeText(el,full,q){const n=Math.round(full.length*clamp(q)); el.textCo
 /* ---------- 3D glass cubes + particles (shared foreground/background) ---------- */
 function buildFx(){
   let h='';
-  for(let i=0;i<9;i++){const s=40+rnd(i+3)*110; h+=`<div class="cube" id="cb${i}" style="--s:${s}px;left:${rnd(i)*1000}px;top:${200+rnd(i+11)*1500}px">${['','','','','',''].map((_,f)=>`<i style="transform:${['translateZ','rotateY(90deg) translateZ','rotateY(180deg) translateZ','rotateY(-90deg) translateZ','rotateX(90deg) translateZ','rotateX(-90deg) translateZ'][f]}(${s/2}px)"></i>`).join('')}</div>`;}
-  for(let i=0;i<40;i++) h+=`<div class="abs pt" id="pt${i}" style="left:${rnd(i+50)*1080}px;top:${rnd(i+80)*1920}px;width:${3+rnd(i+7)*5}px;height:${3+rnd(i+7)*5}px;border-radius:50%;background:${i%4?'rgba(255,255,255,.55)':'#E0237C'}"></div>`;
+  for(let i=0;i<9;i++){const s=40+sr(i+3)*110; h+=`<div class="cube" id="cb${i}" style="--s:${s}px;left:${sr(i)*1000}px;top:${200+sr(i+11)*1500}px">${['','','','','',''].map((_,f)=>`<i style="transform:${['translateZ','rotateY(90deg) translateZ','rotateY(180deg) translateZ','rotateY(-90deg) translateZ','rotateX(90deg) translateZ','rotateX(-90deg) translateZ'][f]}(${s/2}px)"></i>`).join('')}</div>`;}
+  for(let i=0;i<40;i++) h+=`<div class="abs pt" id="pt${i}" style="left:${sr(i+50)*1080}px;top:${sr(i+80)*1920}px;width:${3+sr(i+7)*5}px;height:${3+sr(i+7)*5}px;border-radius:50%;background:${i%4?'rgba(255,255,255,.55)':'#E0237C'}"></div>`;
   $('fx').innerHTML=h;
 }
 function fxAt(t){
-  for(let i=0;i<9;i++){const e=$('cb'+i); const d=1-rnd(i+20)*2;
-    e.style.transform=`translate3d(${Math.sin(t*.4+i)*30}px,${-t*(14+rnd(i)*24)%400}px,0) rotateX(${t*30*d+i*20}deg) rotateY(${t*40*d+i*35}deg)`;
-    e.style.filter=`blur(${rnd(i+30)>.6?5:0}px)`; e.style.opacity=.75;}
-  for(let i=0;i<40;i++){const e=$('pt'+i); e.style.transform=`translateY(${-((t*(10+rnd(i)*30))%300)}px)`; e.style.opacity=.3+.5*Math.abs(Math.sin(t*1.3+i));}
+  for(let i=0;i<9;i++){const e=$('cb'+i); const d=1-sr(i+20)*2;
+    e.style.transform=`translate3d(${Math.sin(t*.4+i)*30}px,${-t*(14+sr(i)*24)%400}px,0) rotateX(${t*30*d+i*20}deg) rotateY(${t*40*d+i*35}deg)`;
+    e.style.filter=`blur(${sr(i+30)>.6?5:0}px)`; e.style.opacity=.75;}
+  for(let i=0;i<40;i++){const e=$('pt'+i); e.style.transform=`translateY(${-((t*(10+sr(i)*30))%300)}px)`; e.style.opacity=.3+.5*Math.abs(Math.sin(t*1.3+i));}
 }
 
 /* ---------- scenes ---------- */
@@ -156,25 +221,68 @@ function fxAt(t){
 // Script-driven composition: hero (device art when the icon IS a device, else a glass card with the icon)
 // + floating keyword chips taken from the script + decoration (orbit, growth arrow on fixes, X stamp on mistakes).
 const DEVICE={camera:()=>CAMERA, tv:k=>MONITOR(k), phone:k=>PHONE(k), laptop:k=>LAPTOP(k)};
-function heroArt(icon,k,good){
-  if(DEVICE[icon]) return `<div class="dev lay" data-z="1" style="left:50%;top:50%;transform:translate(-50%,-50%) scale(1.05)">${DEVICE[icon](k)}</div>`;
-  const col=good?'#E0237C':'#d5d5de';
-  return `<div class="dev lay" data-z="1" style="left:50%;top:50%;width:560px;height:560px;margin:-280px 0 0 -280px;border-radius:76px;
-     background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.03) 55%,rgba(224,35,124,${good?.16:.03}));
-     border:2px solid rgba(255,255,255,${good?.45:.22});box-shadow:inset 0 0 60px rgba(255,255,255,.05)${good?',0 0 90px rgba(224,35,124,.35)':''}">
-     <div style="position:absolute;left:110px;top:100px;width:340px;height:340px;${good?'':'opacity:.7'}">${ICO(icon,col,good?1.7:1.4)}</div></div>`;
+// ---------- materials: the icon sits inside a "prop" that suits it; layout varies per reel (seeded) ----------
+let SEED=1; const sr=i=>rnd(SEED*7.13+i);           // per-reel random, stable for the same script
+const CAT={
+ browser:'globe search code link doc cursor laptop lock cloud qr compass',
+ phone:'phone cart store bell chat comment heart share wallet money tag gift percent handshake thumbsup thumbsdown bookmark mail pin',
+ player:'play film clapper timeline subtitles captions scissors slowmo hourglass clock tv layers wand zoom crop',
+ dash:'chart bars pie trendup trenddown gauge eye target trophy rocket users star badge crown flag zap fire',
+ studio:'softbox ringlight light sun moon shadow tripod gimbal aperture focus camera bulb sparkle',
+ audio:'mic waveform speaker echo headphones music mute megaphone',
+ list:'list check xcircle alert question storyboard calendar doc quote type pen brush palette box gear shield logo'};
+function catOf(icon){for(const k in CAT) if((' '+CAT[k]+' ').includes(' '+icon+' ')) return k; return 'glass';}
+const PALE='#d5d5de', MAG='#E0237C';
+function glassBox(w,h,good,inner,r=60){return `<div style="position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;margin:${-h/2}px 0 0 ${-w/2}px;border-radius:${r}px;
+  background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.03) 55%,rgba(224,35,124,${good?.16:.03}));border:2px solid rgba(255,255,255,${good?.45:.22});
+  box-shadow:inset 0 0 60px rgba(255,255,255,.05)${good?',0 0 90px rgba(224,35,124,.35)':''};overflow:hidden">${inner}</div>`;}
+const ic=(icon,col,x,y,sz,sw=1.6,extra='')=>`<div style="position:absolute;left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;${extra}">${ICO(icon,col,sw)}</div>`;
+const txt=(t,x,y,fs,col,w=400,wt=600)=>`<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;font-size:${fs}px;font-weight:${wt};color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t)}</div>`;
+function prop(icon,k,good,label,seed){
+  const col=good?MAG:PALE, c=catOf(icon), v=Math.floor(sr(seed)*3);
+  if(DEVICE[icon]&&v<2) return DEVICE[icon](k);           // real device art (camera, monitor, phone, laptop)
+  if(c=='browser') return glassBox(640,470,good,`<div style="position:absolute;left:0;right:0;top:0;height:58px;background:rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.15)"></div>
+     ${[0,1,2].map(i=>`<div style="position:absolute;left:${24+i*30}px;top:20px;width:18px;height:18px;border-radius:50%;background:${i?'#444':MAG}"></div>`).join('')}
+     <div style="position:absolute;left:130px;top:14px;width:440px;height:30px;border-radius:15px;background:rgba(255,255,255,.1)"></div>${txt('hashcovet.com/'+(label||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,18),150,14,22,'#aaa',400,400)}
+     ${ic(icon,col,v==1?60:215,110,v==1?210:210,1.5)}${txt(label,v==1?300:60,v==1?160:350,38,good?'#fff':'#9a9aa8',v==1?300:520)}
+     ${v==1?`<div style="position:absolute;left:300px;top:230px;width:260px;height:20px;border-radius:10px;background:rgba(255,255,255,.12)"></div><div style="position:absolute;left:300px;top:270px;width:200px;height:20px;border-radius:10px;background:rgba(255,255,255,.08)"></div><div style="position:absolute;left:300px;top:330px;width:170px;height:54px;border-radius:27px;background:${good?MAG:'#3a3a46'}"></div>`:''}`,30);
+  if(c=='phone') return `<svg width="0" height="0"></svg>`+glassBox(330,640,good,`<div style="position:absolute;left:115px;top:18px;width:100px;height:24px;border-radius:12px;background:#000"></div>
+     ${ic(icon,col,65,120,200,1.5)}${txt(label,30,360,32,good?'#fff':'#9a9aa8',270)}
+     ${[0,1,2].map(i=>`<div style="position:absolute;left:30px;top:${420+i*56}px;width:270px;height:40px;border-radius:12px;background:rgba(255,255,255,${.06+(good&&i==0?.1:0)})"></div>`).join('')}`,54);
+  if(c=='player') return glassBox(660,420,good,`${ic(icon,col,240,70,180,1.5)}${txt(label,40,280,34,good?'#fff':'#9a9aa8',580)}
+     <div style="position:absolute;left:40px;right:40px;bottom:46px;height:8px;border-radius:4px;background:rgba(255,255,255,.18)"><div style="width:${good?78:22}%;height:100%;border-radius:4px;background:${good?MAG:'#777'}"></div></div>
+     <div style="position:absolute;left:40px;bottom:66px;font:24px HCMono,monospace;color:#999">${good?'0:21':'0:03'} / 0:30</div>`,28);
+  if(c=='dash') return glassBox(620,480,good,`${ic(icon,col,40,40,120,1.6)}${txt(label,190,70,34,good?'#fff':'#9a9aa8',390)}
+     ${[0,1,2,3,4,5].map(i=>{const hh=good?60+i*42:180-i*22+(i%2)*30;return `<div style="position:absolute;left:${60+i*88}px;bottom:50px;width:56px;height:${hh}px;border-radius:10px;background:${good&&i==5?MAG:'rgba(255,255,255,'+(.12+i*.03)+')'}"></div>`}).join('')}`,40);
+  if(c=='studio') return glassBox(560,560,good,`<div style="position:absolute;left:280px;top:60px;width:0;height:0;border-left:230px solid transparent;border-right:230px solid transparent;border-top:420px solid rgba(255,255,255,${good?.10:.03});transform:translateX(-50%) rotate(180deg);transform-origin:0 0"></div>
+     ${ic(icon,col,170,70,220,1.5)}${txt(label,40,440,36,good?'#fff':'#9a9aa8',480)}`,76);
+  if(c=='audio') return glassBox(640,420,good,`${ic(icon,col,40,40,140,1.6)}${txt(label,210,80,34,good?'#fff':'#9a9aa8',390)}
+     <svg style="position:absolute;left:40px;top:220px" width="560" height="150" viewBox="0 0 560 150">${Array.from({length:40},(_,i)=>{const hh=good?20+Math.abs(Math.sin(i*.55))*110:8+((i*37)%11)*(i%9==0?12:2);return `<rect x="${i*14}" y="${75-hh/2}" width="8" height="${hh}" rx="4" fill="${good?MAG:'#666'}"/>`}).join('')}</svg>`,36);
+  if(c=='list') return glassBox(560,520,good,`${ic(icon,col,40,36,110,1.6)}${txt(label,170,62,34,good?'#fff':'#9a9aa8',350)}
+     ${[0,1,2,3].map(i=>`<div style="position:absolute;left:44px;top:${190+i*76}px;width:44px;height:44px;border-radius:12px;border:3px solid ${good?MAG:'#666'};display:flex;align-items:center;justify-content:center;color:${good?MAG:'#E0237C'};font-weight:700;font-size:30px">${good?'✓':(i%2?'✗':'')}</div><div style="position:absolute;left:112px;top:${200+i*76}px;width:${330-i*40}px;height:24px;border-radius:12px;background:rgba(255,255,255,.1)"></div>`).join('')}`,44);
+  return glassBox(560,560,good,`${ic(icon,col,110,100,340,good?1.7:1.4,good?'':'opacity:.7')}`,76);
 }
-function chips(words,good){ // short script phrases floating around the hero
-  const pos=[[30,40],[600,90],[40,600],[560,640],[300,700]];
+function heroArt(icon,k,good,label,seed=0){
+  const dx=Math.round((sr(seed+1)-.5)*180), rot=((sr(seed+2)-.5)*14).toFixed(1);
+  return `<div class="dev lay" data-z="1" style="left:calc(50% + ${dx}px);top:50%;transform:translate(-50%,-50%) rotate(${rot}deg)">${prop(icon,k,good,label,seed)}</div>`;
+}
+function chips(words,good,seed=0){ // short script phrases floating around the hero
+  const L=[[[30,40],[600,90],[40,600],[560,640]],[[0,330],[620,300],[180,-10],[420,690]],[[560,20],[20,140],[600,560],[40,690]]];
+  const pos=L[Math.floor(sr(seed+6)*3)];
   return words.filter(Boolean).slice(0,4).map((w,i)=>`<div class="dev lay chip" data-z="${1.4+i*.25}" style="left:${pos[i][0]}px;top:${pos[i][1]}px;max-width:460px;padding:18px 30px;border-radius:999px;
      font-size:34px;font-weight:${good?600:400};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${good?'#fff':'#a9a9b6'};
      background:${good?'rgba(224,35,124,.22)':'rgba(255,255,255,.06)'};border:2px solid ${good?'rgba(224,35,124,.7)':'rgba(255,255,255,.18)'};${good?'':'text-decoration:line-through;text-decoration-color:#E0237C'}">${good?'✓ ':''}${esc(w)}</div>`).join('');
 }
-function compo(icon,k,words,good,extra=''){
+function compo(icon,k,words,good,extra='',label=''){
+  const seed=k*10+(good?5:0), ov=Math.floor(sr(seed+3)*3);
+  const orbit=ov==0?`<div class="abs orbW" style="left:120px;top:70px">${ORBIT(660,660)}</div>`
+             :ov==1?`<div class="abs orbW" style="left:20px;top:250px">${ORBIT(860,320,false)}</div><div class="abs orbW" style="left:200px;top:110px">${ORBIT(500,500)}</div>`
+             :`<div class="abs orbW" style="left:60px;top:20px">${ORBIT(780,780)}</div>`;
+  const wl=words.slice(); if(sr(seed+4)>.5) wl.reverse();
   return `<div class="abs rig" style="left:90px;top:860px;width:900px;height:800px">
-    <div class="abs orbW" style="left:120px;top:70px">${ORBIT(660,660)}</div>
-    ${good?`<div class="abs arrW" style="left:420px;top:-70px">${ARROW}</div>`:''}
-    ${heroArt(icon,k,good)}${chips(words,good)}
+    ${orbit}
+    ${good?`<div class="abs arrW" style="left:${sr(seed+5)>.5?420:-40}px;top:-70px;${sr(seed+5)>.5?'':'transform:scaleX(-1)'}">${ARROW}</div>`:''}
+    ${heroArt(icon,k,good,label,seed)}${chips(wl,good,seed)}
     ${good?'':`<svg class="abs xst" style="left:600px;top:120px" width="170" height="170" viewBox="0 0 24 24" fill="none" stroke="#E0237C" stroke-width="2.4" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>`}${extra}</div>`;
 }
 function hookIcon(sp){
@@ -185,14 +293,14 @@ function hookIcon(sp){
 }
 
 function setup(spec,tl){
-  S=spec; TL=tl; buildFx(); $('logo').innerHTML=LOGO;
+  S=spec; TL=tl; SEED=[...(spec.topic||spec.hook.line||'x')].reduce((a,c)=>(a*31+c.charCodeAt(0))%9973,7); buildFx(); $('logo').innerHTML=LOGO;
   const sc=$('scenes'); sc.innerHTML=''; SC=[];
   const add=(a,b,html,kind,extra={})=>{const d=document.createElement('div'); d.className='scene'; d.innerHTML=html; sc.appendChild(d); SC.push({a,b,el:d,kind,...extra}); return d;};
   // hook scene lasts until the first mistake is spoken (old template used a 1 s thumbnail)
   const T0=Math.max(TL.thumb, Math.min(TL.tips[0].fx-1.2, (TL.voice_at&&TL.voice_at.m0?TL.voice_at.m0-.25:TL.thumb)));
   // HOOK
   add(0,T0,`<div class="h hl" style="top:330px;height:420px">${headline(spec.hook.line,spec.hook.script)}</div>
-            <div class="tw sub" style="top:${760}px"></div>${compo(hookIcon(spec),0,spec.tips.map(t=>t.title+' '+t.title_script),true)}`,'hook',{sub:spec.hook.sub||''});
+            <div class="tw sub" style="top:${760}px"></div>${compo(hookIcon(spec),0,spec.tips.map(t=>t.title+' '+t.title_script),true,'',spec.hook.script)}`,'hook',{sub:spec.hook.sub||''});
   // TIPS
   spec.tips.forEach((t,i)=>{const r=TL.tips[i];
     add(i==0?T0:r.s,r.e,`<div class="kick" style="top:300px">Mistake 0${i+1}</div>
@@ -200,8 +308,8 @@ function setup(spec,tl){
       <div class="tw bad" style="top:700px;color:#8d8d99;text-decoration:line-through;text-decoration-color:#E0237C"></div>
       <div class="abs fixH" style="left:84px;top:690px;font-weight:700;font-size:46px;opacity:0">✓ ${esc(t.good.headline)} <span class="acc">${esc(t.good.script)}</span></div>
       <div class="tw fix" style="top:760px;color:#fff"></div>
-      <div class="abs ph bad-ph" style="inset:0">${compo(t.bad.icon,i+1,t.bad.lines||[],false)}</div>
-      <div class="abs ph good-ph" style="inset:0;opacity:0">${compo(t.good.icon,i+2,[t.good.headline+' '+t.good.script, ...(t.fix||'').split(/[,.;]/).map(x=>x.trim()).filter(x=>x&&x.length<28).slice(0,2)],true)}</div>`,'tip',{bad:(t.bad.lines||[]).join('  ·  '),fix:'Fix: '+t.fix,fx:r.fx});
+      <div class="abs ph bad-ph" style="inset:0">${compo(t.bad.icon,i+1,t.bad.lines||[],false,'',t.title+' '+t.title_script)}</div>
+      <div class="abs ph good-ph" style="inset:0;opacity:0">${compo(t.good.icon,i+2,[t.good.headline+' '+t.good.script, ...(t.fix||'').split(/[,.;]/).map(x=>x.trim()).filter(x=>x&&x.length<28).slice(0,2)],true,'',t.good.headline+' '+t.good.script)}</div>`,'tip',{bad:(t.bad.lines||[]).join('  ·  '),fix:'Fix: '+t.fix,fx:r.fx});
   });
   // SAVE
   add(TL.save.s,TL.save.e,`<div class="h hl" style="top:520px;height:420px;text-align:center">${headline(spec.save.line,spec.save.script)}</div>

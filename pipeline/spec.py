@@ -1,7 +1,7 @@
 """The reel spec: one JSON object drives script, voiceover, visuals, caption and hashtags."""
 
 ICONS = ["logo", "headphones", "mute", "captions", "list", "heart", "tag", "megaphone", "tv", "bulb",
-         "phone", "mic", "camera", "clock", "chart", "eye", "play", "star", "cart", "users", "light", "scissors", "globe", "code", "rocket", "calendar", "chat", "wallet", "search", "gear", "pin", "mail", "store", "laptop", "money", "shield"]
+         "phone", "mic", "camera", "clock", "chart", "eye", "play", "star", "cart", "users", "light", "scissors", "globe", "code", "rocket", "calendar", "chat", "wallet", "search", "gear", "pin", "mail", "store", "laptop", "money", "shield", "softbox", "ringlight", "tripod", "gimbal", "aperture", "focus", "crop", "sun", "moon", "shadow", "waveform", "speaker", "echo", "music", "film", "clapper", "timeline", "storyboard", "layers", "wand", "zoom", "subtitles", "slowmo", "hourglass", "gauge", "palette", "type", "pen", "brush", "crown", "badge", "sparkle", "quote", "target", "zap", "fire", "bell", "thumbsup", "thumbsdown", "comment", "share", "bookmark", "cursor", "trophy", "flag", "gift", "box", "percent", "pie", "bars", "trendup", "trenddown", "doc", "check", "xcircle", "alert", "question", "link", "lock", "cloud", "tablet", "watch", "qr", "handshake", "compass"]
 
 SCHEMA_DOC = """{
   "topic": "short topic name (for de-duplication)",
@@ -32,6 +32,12 @@ def _len(v, n):
 
 def validate(s, max_tags=5):
     p = validate_design(s.get("design")) if isinstance(s, dict) else []
+    try:
+        icons = [t[k]["icon"] for t in s["tips"] for k in ("bad", "good")]
+        if len(set(icons)) < 4:
+            p.append("use more different icons (at least 4 different ones across the 3 mistakes and fixes)")
+    except Exception:
+        pass
     au = s.get("audio") if isinstance(s, dict) else None
     if au is not None:
         if not isinstance(au, dict): p.append("audio must be an object")

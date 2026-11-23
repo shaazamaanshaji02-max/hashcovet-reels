@@ -53,7 +53,7 @@ It also watches GitHub free minutes (2,000/month) and storage.
 /help — this guide
 
 🔘 UNDER A SCRIPT
-✅ Approve script — make the voice + video
+✅ Approve script — then pick the style: 🎞 Old template (current look) or ✨ New template (editorial 2.5D motion graphics; pictures + screens follow your script)
 🤖 Change with AI — describe the change · ✍️ Edit it myself — your exact words are used
 🕒 Posting time — post THIS reel at another time (18:30, 6:30 pm, 25 Dec 9:00, tomorrow 9am, default)
 
@@ -65,6 +65,7 @@ It also watches GitHub free minutes (2,000/month) and storage.
 🎵 Music & sounds — pick the track or no music, music / effects louder or quieter, hear the tracks, then Apply
 🕒 Posting time — same as above
 ↩️ Undo last change — back exactly one step
+🔄 Switch template — re-make this video in the other style (Arjun's voice reused)
 
 🔘 AFTER IT POSTS (one message per reel, with a link for each platform)
 🔁 Retry Instagram / Facebook / YouTube — ONLY shown if that platform failed; retries just that one (never posts twice)

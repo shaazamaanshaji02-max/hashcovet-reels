@@ -250,6 +250,11 @@ async def apply_design(pg, spec, tl):
         await pg.wait_for_timeout(200)
 
 
+# Video styles the approver can pick before a video is made (spec.template): old = current Hashcovet style,
+# new = editorial 2.5D motion-graphics style (trained from the owner's reference reels, 2026-11-23).
+TEMPLATES = {"old": "reel.html", "new": "reel2.html"}
+
+
 async def _frames(spec, tl, audio, out, fps):
     from playwright.async_api import async_playwright
     ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(fps),
@@ -263,10 +268,12 @@ async def _frames(spec, tl, audio, out, fps):
             kw["executable_path"] = os.environ["CHROME_PATH"]
         b = await p.chromium.launch(**kw)
         pg = await b.new_page(viewport={"width": 1080, "height": 1920})
-        await pg.goto((ROOT / "templates" / "reel.html").as_uri())
+        tpl = TEMPLATES.get(spec.get("template") or "old", TEMPLATES["old"])
+        await pg.goto((ROOT / "templates" / tpl).as_uri())
         await pg.evaluate("document.fonts.ready")
         await pg.evaluate("([s,t])=>setup(s,t)", [spec, tl])
-        await apply_design(pg, spec, tl)
+        if tpl == TEMPLATES["old"]:
+            await apply_design(pg, spec, tl)   # element ids in DESIGN_DOC belong to the old template
         await pg.wait_for_timeout(400)
         for f in range(int(tl["D"] * fps)):
             await pg.evaluate(f"seek({f / fps})")

@@ -56,7 +56,7 @@ def video_buttons(j):
                [("📝 Edit caption", f"a|vcap|{j}"), ("#️⃣ Edit hashtags", f"a|vtag|{j}")],
                [("🤖 Change video with AI", f"a|vch|{j}"), ("✍️ Edit script myself", f"a|vmanq|{j}")],
                [("🎵 Music & sounds", f"a|aud|{j}"), ("🕒 Posting time", f"a|vtime|{j}")],
-               [("↩️ Undo last change", f"a|vundo|{j}")]])
+               [("↩️ Undo last change", f"a|vundo|{j}"), ("🔄 Switch template", f"a|tsw|{j}")]])
 
 
 def video_preview(job, video_path=None, note=""):

@@ -958,11 +958,37 @@ def act(action, jid, text):
         return
 
     if action == "sok":
-        job["status"] = "producing"
+        # Owner rule (2026-11-23): before any video is made, ask which template to use.
         log_event(job, "script_approved", "")
+        job["script_ok"] = True
         save_job(job); git_commit(f"script approved {jid}")
-        previews.notify(f"🎙️🎬 {nice_date(jid)}: script approved. Making Arjun's voice and the video… (a few minutes)")
+        previews.send_text(f"✅ Script approved for <b>{nice_date(jid)}</b>.\n<b>Which video style?</b>\n"
+                           f"🎞 <b>Old template</b> — the current Hashcovet style\n"
+                           f"✨ <b>New template</b> — editorial 2.5D motion graphics (devices, orbits, growth arrow, whip pans)",
+                           previews.kb([[("🎞 Old template", f"a|tpo|{jid}"), ("✨ New template", f"a|tpn|{jid}")]]))
+
+    elif action in ("tpo", "tpn"):
+        if not job.get("script_ok") and job["status"] == "script_review":
+            previews.notify("Approve the script first, then pick the style.")
+            return
+        job["spec"]["template"] = "new" if action == "tpn" else "old"
+        job["status"] = "producing"
+        log_event(job, "template_chosen", job["spec"]["template"])
+        save_job(job); git_commit(f"template {job['spec']['template']} {jid}")
+        name = "✨ New template" if action == "tpn" else "🎞 Old template"
+        previews.notify(f"🎙️🎬 {nice_date(jid)}: {name}. Making Arjun's voice and the video… (a few minutes)")
         dispatch_produce(jid)
+
+    elif action == "tsw":   # switch template on a finished video (voice is reused)
+        snapshot(job)
+        cur = job["spec"].get("template") or "old"
+        job["spec"]["template"] = "old" if cur == "new" else "new"
+        job["version"] += 1; job["status"] = "producing"
+        log_event(job, "template_switched", job["spec"]["template"])
+        save_job(job); git_commit(f"template switch {jid}")
+        name = "✨ New template" if job["spec"]["template"] == "new" else "🎞 Old template"
+        previews.notify(f"🔄 {nice_date(jid)}: re-making in {name} (Arjun's voice reused)…")
+        dispatch_produce(jid, f"Switched to {name}.")
 
     elif action in ("smanq", "vmanq"):
         previews.manual_prompt(job, action[:-1])

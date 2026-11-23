@@ -24,6 +24,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11", cache: pip }
+      - name: keep installed tools between videos (saves ~20 GitHub minutes per video)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.pythonLocation }}
+            ~/.cache/ms-playwright
+          key: pyenv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}-seedvc-v1
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
       - run: pip install -r requirements.txt && python -m playwright install --with-deps chromium
       - uses: actions/cache@v4

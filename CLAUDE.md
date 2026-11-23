@@ -157,6 +157,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-23: GitHub minutes (1402/2000 on 23 Nov, videos were 50-60 min because Seed-VC packages were reinstalled every run): produce.yml now caches the whole Python install (`${{ env.pythonLocation }}`) + Playwright browsers (key pyenv-<os>-<requirements hash>-seedvc-v1). First run after a requirements change rebuilds; later runs skip the installs. Bump the key suffix to force a clean install.
 - 2026-11-23: Fix: 28 Nov voice failed — runner disk full during Seed-VC pip install ('No space left on device' → ModuleNotFoundError dac). produce.yml now frees ~30 GB first (dotnet/android/ghc/CodeQL/boost/docker images); pip installs use --no-cache-dir; package check includes dac so a half install is redone.
 - 2026-11-23: Fix: /help stopped answering — HELP grew past Telegram's 4096-char limit. Worker `tg()` now auto-splits any sendMessage over 4000 chars at blank lines (buttons only on the last part). Keep this in mind when growing HELP.
 - 2026-11-23: Fix: force-reply prompts not tied to a reel (radd) are tagged `#job:-`; the Worker maps '-' to an empty job so the reply is no longer ignored.

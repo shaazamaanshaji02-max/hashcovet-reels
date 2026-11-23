@@ -112,8 +112,8 @@ def git_commit(msg, extra=()):
         code = [e for e in extra if not str(e).startswith(DATA_PATHS)]
         if code:
             _commit_push(ROOT, code, msg)                  # code-side files (design_overrides, wrangler.toml)
-    else:
-        _commit_push(ROOT, ["jobs", "memory", *extra], msg)
+    elif os.environ.get("GITHUB_ACTIONS"):
+        raise RuntimeError("private data repo not linked — refusing to save private files in the public code repo")
 
 
 # ---------------- private video store (release assets in the private data repo) ----------------

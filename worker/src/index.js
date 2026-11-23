@@ -47,7 +47,7 @@ Each problem comes with a fix button:
 🔧 Restart the bot — if its clock stopped
 🔗 Open on YouTube — a Short stayed private (Google limits new apps); make it public in YouTube Studio
 🔁 Remake video — also offered when a waiting video file is about to expire (kept 30 days)
-It also watches GitHub free minutes (2,000/month) and storage.
+It also watches the bot's GitHub (free minutes are unlimited) and storage.
 🐕 A separate watchdog checks twice a day that the bot itself is alive and linked to Telegram, fixes it if it can, and tells you.
 🩺 Check again — run the check once more
 /help — this guide
@@ -208,11 +208,11 @@ to upload HASHCOVET's approved videos with their titles, captions and hashtags, 
 the right accounts are connected.</li>
 <li>It does not access, collect, store, sell or share any data of other users or viewers.</li></ul>
 <h2>Storage</h2>
-<p>Access tokens are stored as encrypted secrets in HASHCOVET's private GitHub repository and Cloudflare account and are
+<p>Access tokens are stored as encrypted secrets in HASHCOVET's GitHub account and Cloudflare account and are
 used only by this tool. Access can be removed at any time from the Google account security page
 (myaccount.google.com/permissions) or Facebook settings (Business integrations).</p>
 <h2>Contact</h2><p>hashcovet@gmail.com · <a href="https://hashcovet.com">hashcovet.com</a></p>
-<p><small>Last updated: 18 November 2026</small></p></body>`;
+<p><small>Last updated: 23 November 2026</small></p></body>`;
 
 // Exact-time schedule (UTC crons in wrangler.toml; IST = UTC+5:30)
 const CRON_ACTION = {

@@ -4,11 +4,22 @@ You are maintaining an automated Instagram-reel factory built for a CLIENT, **Ha
 hashcovet.com), a video production studio. The owner is **not technical**: do the work yourself, explain in plain
 words, and ask them only for things only they can do (pasting secrets, approving in Telegram, account logins).
 
+## ⚠️ TWO REPOS (since 23 Nov) — read before touching anything
+- `shaazamaanshaji02-max/hashcovet-reels` = **PUBLIC**, CODE ONLY (unlimited free Actions minutes). Anyone can read it:
+  never commit secrets, scripts, job history, voice samples or config values here.
+- `shaazamaanshaji02-max/hashcovet-reels-data` = **PRIVATE** DATA: `jobs/` `memory/` `data/` `assets/voice/` `config.json`
+  + release `videos` (every rendered mp4, `<id>_v<version>.mp4`). Workflows reach it with secret `DATA_TOKEN`.
+- Working in a new session: clone BOTH (add_repo for each, push access), then in the code clone run
+  `for p in jobs memory data config.json; do ln -sfn ../hashcovet-reels-data/$p $p; done; ln -sfn ../../hashcovet-reels-data/assets/voice assets/voice`
+  (these links are git-ignored). Edit code → push to hashcovet-reels. Edit config.json / learnings / a job → commit+push in
+  hashcovet-reels-data. If `DATA_TOKEN` stops working: new fine-grained PAT (data repo only, Contents Read+write, no
+  expiry) → owner saves it as GitHub secret DATA_TOKEN in hashcovet-reels.
+
 ## FIRST STEP for any new session
 1. Read this whole file (it is kept current — the Status log at the bottom is the change history).
 2. Before changing anything, tell the owner which accounts the task needs and ask them to log in to those in the
    browser first (see "Accounts used"). Typical needs:
-   - code/design/prompt changes → GitHub `shaazamaanshaji02-max` (if your GitHub login can't reach this private repo,
+   - code/design/prompt changes → GitHub `shaazamaanshaji02-max` (if your GitHub login can't push to these repos,
      ask the owner to add their other account `Shaazamaan` as a Write collaborator, then use add_repo)
    - bot buttons/webhook/clock issues → Cloudflare (shaazamaanshaji02@gmail.com) + Telegram
    - posting to Instagram/Facebook → Facebook profile that admins Page HASHCOVET (+ developers.facebook.com)
@@ -80,11 +91,11 @@ post_failed → removed. (`ready_to_post` only if no platform is connected.)
 | Reel format + validation + char limits + allowed icons | `pipeline/spec.py` (+ icon SVGs in `templates/reel.html`) |
 | Design (Hashcovet look) | OLD `templates/reel.html` / NEW `templates/reel2.html` (chosen per reel),, fonts in `assets/fonts/`; approver layout changes for all reels in `templates/design_overrides.json` |
 | Actions router | `pipeline/main.py` — commands: daily remind publish new plan status posted health settime connectcheck aitest voicecheck celebrations fetchmusic linkgroup access report reportauto vreport crash redeploy rules rdel radd; buttons: sok sch smanq sman vok vcap vtag vch vmanq vman keepall keepno vundo tpo tpn tsw · vtime open remake · aud at<N> atA at0 amd amu asd asu aso ahear aok adef · sgy sgo sgm sgx sgn sga (suggestions) · pman repost rpi rpf rpy unpubq unpub unpubno rmq<i/f/y> rm<i/f/y>. New force-reply prompts go in worker PROMPTS; new action names in bot.yml's description list |
-| Per-reel history (every version/edit) | `jobs/<id>/job.json` |
+| Per-reel history (every version/edit) | `jobs/<id>/job.json` (PRIVATE data repo) |
 | Learned rules / used topics | `memory/learnings.json` (TEAM rules, each with `by`), `memory/topics_used.json` |
 | Bot suggestions + next-video-only notes | `pipeline/suggestions.py`, `data/suggestions.json`, `memory/next_video.json`; `/rules` in Telegram |
 | Telegram ↔ GitHub bridge | `worker/` (Cloudflare Worker `hashcovet-reels-bot`) |
-| Videos | GitHub Actions artifacts of `produce` runs (30 days) + Telegram |
+| Videos | PRIVATE data repo release `videos` (`common.store_video`/`fetch_video`) + Telegram copy |
 | Posting to IG / FB / YouTube | `pipeline/publish.py` (+ `config.json publish`) |
 | Background music (CC0, Openverse) | `assets/music/*.mp3` + `credits.json`; refresh: Actions → fetch-music (`pipeline/fetch_music.py`) |
 | Sound effects (earshot bank) | `assets/sfx/*.wav` (+ README with ids); placed by `render.py:make_real_bed` |
@@ -105,7 +116,7 @@ inside content only a small corner logo + "hashcovet.com" watermark; end card ke
 ## Accounts used (owner login shaazamaanshaji02@gmail.com, EXCEPT YouTube/Google Cloud = hashcovetsales@gmail.com)
 | Service | Account | Used for | Secret(s) it provides |
 |---|---|---|---|
-| GitHub | `shaazamaanshaji02-max` (repo `shaazamaanshaji02-max/hashcovet-reels`, private) | code, daily schedule, voice + video rendering (Actions) | `GITHUB_TOKEN` for the Worker: fine-grained PAT → github.com/settings/personal-access-tokens, repo hashcovet-reels only, Actions: Read & write |
+| GitHub | `shaazamaanshaji02-max` (code repo `shaazamaanshaji02-max/hashcovet-reels` PUBLIC + data repo `hashcovet-reels-data` PRIVATE) | code, daily schedule, voice + video rendering (Actions) | `GITHUB_TOKEN` for the Worker: fine-grained PAT → github.com/settings/personal-access-tokens, repo hashcovet-reels only, Actions: Read & write |
 | Google AI Studio | shaazamaanshaji02@gmail.com | script writing (Gemini, free) | `GEMINI_API_KEY` → aistudio.google.com/app/apikey (key "Gemini API Key", Default Gemini Project) |
 | Hugging Face | logged in with shaazamaanshaji02@gmail.com | Arjun voice conversion on free GPU (Seed-VC) | `HF_TOKEN` → huggingface.co/settings/tokens, type **Read** |
 | Telegram | owner's Telegram + a bot from @BotFather | approvals | `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` / `APPROVER_CHAT_ID` (owner's numeric user id, from @userinfobot) |
@@ -147,7 +158,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
   Google Cloud project hashcovet-reels-yt ("Hashcovet Reels YT", on hashcovetsales@gmail.com), app In production. Client secret is only shown once — if lost, create a new OAuth client (Web, redirect https://developers.google.com/oauthplayground) and update YT_CLIENT_ID/SECRET + new refresh token.
 - Shorts stay private: Google limits unaudited apps → owner makes them public in Studio; apply for the YouTube API audit.
 - Timed posts not going out: check KV clock (`/health` "Bot clock"), Actions → deploy-worker → Run workflow.
-- GitHub minutes (private repo, 2000/month; each video ≈45 min): health warns; fewer re-renders, or make the repo
+- GitHub minutes: unlimited since the code repo went public (23 Nov). If it is ever made private again: 2000/month, each video ≈45 min; health warns; fewer re-renders, or make the repo
   public / buy minutes (owner's decision).
 - Instagram delete fails: token missing instagram_manage_contents → redo the Meta token steps above.
 
@@ -157,6 +168,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-23: Notes + /help + privacy page updated for the two-repo setup (see "TWO REPOS" at the top).
 - 2026-11-23: 🔐 PRIVATE DATA SPLIT (for unlimited free GitHub minutes once this code repo is public). Private repo `shaazamaanshaji02-max/hashcovet-reels-data` holds jobs/ memory/ data/ assets/voice/ config.json. Every workflow runs `scripts/use_data.sh` (secret `DATA_TOKEN` = fine-grained PAT, data repo only, Contents read+write, no expiry) → clones it to `_data/` and symlinks those paths; `common.git_commit` commits+pushes in `_data` (code files like design_overrides/wrangler.toml still go to this repo). Videos no longer use Actions artifacts (public on a public repo): `common.store_video` uploads the mp4 to release `videos` of the data repo, `publish.get_video` reads it via `fetch_video` (artifact + Telegram copy kept as fallbacks). `migrate-videos.yml` copied old artifacts once. DONE 23 Nov (owner OK): data paths removed from this repo + whole history (filter-branch, force-push), all 352 old run logs deleted. Owner switched this repo to PUBLIC on 23 Nov → GitHub minutes unlimited; health shows "unlimited". Never commit jobs/memory/data/assets/voice/config.json here again (they are symlinks on the runner).
 - 2026-11-23: 🧰 MORE MATERIALS (owner: videos must not feel copy-pasted). Scanned all 14 scripts (topics: lighting, shaky camera, audio/podcast, editing/timing, captions/text, colour/brand, storyboard, motion, hooks/attention, product, background, Google/SEO/SGE, mobile, speed, infographics, TV ads, web) — only 21 icons had been used, a few over and over. ICONS now 101 (original stroke icons, /tmp list in spec.ICONS; both templates' ICON maps). New template 'props' per icon category (reel2.html `CAT` → browser window / phone app / video player / dashboard / studio light-cone / audio waveform / checklist / glass tile; real device art for camera/tv/phone/laptop), each showing the script's own words; per-reel seeded variation (SEED from topic: hero offset+tilt, 3 orbit styles, 3 chip layouts, arrow side, cubes/particles). Writer prompt: most specific icon per mistake/fix, 6 different icons, avoid `ai_tasks.recent_icons()`; validator requires ≥4 different icons per reel.
 - 2026-11-23: 🎨 TWO TEMPLATES (owner): after ✅ Approve script the bot asks 🎞 Old template (`tpo`, templates/reel.html) or ✨ New template (`tpn`, templates/reel2.html) → spec.template → produce. 🔄 Switch template on the video preview (`tsw`, snapshot + re-render, voice reused). render.TEMPLATES maps old/new; layout overrides (DESIGN_DOC ids) apply to the old template only. New template = editorial 2.5D style trained from 3 owner reference reels (Gemini-made; ours is drawn in SVG/CSS, no watermark, no stock images): white Poppins Bold headlines + magenta bold-italic serif accent (assets/fonts/LiberationSerif-BoldItalic.ttf, OFL) with random character reveals, typewriter mono lines (DejaVuSansMono), drawn laptop/camera/monitor/phones with mock UIs, dashed orbits, growth arrow, CSS 3D glass cubes + particles, alternating vertical whip-pan / blurred object-wipe transitions, logo top-left + hashcovet.com pill bottom-left always. Hook scene lasts until the first mistake is spoken. VISUALS FOLLOW THE SCRIPT (owner: samples were for style only): each tip shows its `bad.icon` (grey, crossed, chips = bad.lines struck through) then swaps at the fix to its `good.icon` (magenta glow, growth arrow, chips = good headline + fix phrases); device art only when the icon is a device (camera/tv/phone/laptop); hook icon from hook/topic keywords (hookIcon) with the 3 mistake titles as chips. ICONS extended (globe code rocket calendar chat wallet search gear pin mail store laptop money shield) in spec.py + both templates. Same spec/timeline/voice/music as the old template.

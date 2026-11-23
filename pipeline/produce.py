@@ -8,7 +8,7 @@ import sys
 import traceback
 
 import previews
-from common import CFG, nice_date, ROOT, all_jobs, git_commit, load_job, log_event, save_job
+from common import store_video, CFG, nice_date, ROOT, all_jobs, git_commit, load_job, log_event, save_job
 from render import render
 from voice import make_voice
 
@@ -36,6 +36,7 @@ def main(jid, note=""):
     log_event(job, "video_rendered", {"voice": method, "duration": tl["D"]})
     previews.video_preview(job, out, note=" ".join(x for x in [note, vnote] if x))
     save_job(job)
+    store_video(out)
     git_commit(f"video {jid} v{job['version']}", extra=(f"jobs/{jid}/voice",))
     print(out)
     # (no auto-chaining: each video is made only after its own script is approved)

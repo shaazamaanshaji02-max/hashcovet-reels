@@ -8,6 +8,7 @@ import subprocess
 import time
 
 import requests
+from pathlib import Path
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CFG = json.loads((ROOT / "config.json").read_text())
@@ -86,20 +87,85 @@ def add_topic(t):
 
 
 # ---------------- git ----------------
+DATA = ROOT / "_data"   # private data repo checkout (scripts/use_data.sh); jobs/memory/data/config are symlinks into it
+DATA_PATHS = ("jobs", "memory", "data", "assets/voice", "config.json")
+
+
+def _commit_push(cwd, paths, msg):
+    subprocess.run(["git", "add", "-A", *paths], cwd=cwd, check=False)
+    if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=cwd).returncode == 0:
+        return
+    subprocess.run(["git", "commit", "-q", "-m", msg], cwd=cwd, check=True)
+    for _ in range(4):
+        if subprocess.run(["git", "push", "-q"], cwd=cwd).returncode == 0:
+            return
+        subprocess.run(["git", "pull", "-q", "--rebase"], cwd=cwd)
+        time.sleep(3)
+    raise RuntimeError("git push failed")
+
+
 def git_commit(msg, extra=()):
     if os.environ.get("NO_GIT"):
         return
-    subprocess.run(["git", "add", "jobs", "memory", *extra], cwd=ROOT, check=False)
-    r = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=ROOT)
-    if r.returncode == 0:
-        return
-    subprocess.run(["git", "commit", "-m", msg], cwd=ROOT, check=True)
-    for _ in range(4):
-        if subprocess.run(["git", "push"], cwd=ROOT).returncode == 0:
-            return
-        subprocess.run(["git", "pull", "--rebase"], cwd=ROOT)
-        time.sleep(3)
-    raise RuntimeError("git push failed")
+    if DATA.is_dir():
+        _commit_push(DATA, ["."], msg)                     # private data
+        code = [e for e in extra if not str(e).startswith(DATA_PATHS)]
+        if code:
+            _commit_push(ROOT, code, msg)                  # code-side files (design_overrides, wrangler.toml)
+    else:
+        _commit_push(ROOT, ["jobs", "memory", *extra], msg)
+
+
+# ---------------- private video store (release assets in the private data repo) ----------------
+def _data_api():
+    tok, repo = os.environ.get("DATA_TOKEN"), os.environ.get("GITHUB_REPOSITORY", "")
+    if not tok or not repo:
+        return None, None
+    owner = repo.split("/")[0]
+    return f"https://api.github.com/repos/{owner}/hashcovet-reels-data", {
+        "Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}
+
+
+def _videos_release(api, h):
+    r = requests.get(f"{api}/releases/tags/videos", headers=h, timeout=60)
+    if r.status_code == 200:
+        return r.json()
+    return requests.post(f"{api}/releases", headers=h, timeout=60, json={
+        "tag_name": "videos", "name": "videos", "body": "Rendered reels (private)."}).json()
+
+
+def store_video(path):
+    """Keeps the rendered mp4 privately (replaces GitHub artifacts, which are visible on a public repo)."""
+    api, h = _data_api()
+    if not api:
+        return False
+    try:
+        rel = _videos_release(api, h)
+        for a in rel.get("assets", []):
+            if a["name"] == Path(path).name:
+                requests.delete(f"{api}/releases/assets/{a['id']}", headers=h, timeout=60)
+        up = rel["upload_url"].split("{")[0]
+        r = requests.post(up, params={"name": Path(path).name}, data=Path(path).read_bytes(), timeout=600,
+                          headers={**h, "Content-Type": "video/mp4"})
+        return r.status_code in (200, 201)
+    except Exception as e:
+        print("store_video failed:", e)
+        return False
+
+
+def fetch_video(name, out):
+    api, h = _data_api()
+    if not api:
+        return False
+    r = requests.get(f"{api}/releases/tags/videos", headers=h, timeout=60)
+    if r.status_code != 200:
+        return False
+    for a in r.json().get("assets", []):
+        if a["name"] == name:
+            d = requests.get(a["url"], headers={**h, "Accept": "application/octet-stream"}, timeout=600)
+            if d.status_code == 200:
+                Path(out).write_bytes(d.content); return True
+    return False
 
 
 # ---------------- telegram ----------------

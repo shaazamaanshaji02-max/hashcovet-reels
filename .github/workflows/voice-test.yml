@@ -7,6 +7,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: private data
+        env: { DATA_TOKEN: "${{ secrets.DATA_TOKEN }}" }
+        run: bash scripts/use_data.sh
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng

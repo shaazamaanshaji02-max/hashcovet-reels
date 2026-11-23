@@ -20,7 +20,7 @@ import zipfile
 
 import requests
 
-from common import CFG, ROOT
+from common import CFG, ROOT, fetch_video
 
 GRAPH = "https://graph.facebook.com/" + CFG.get("publish", {}).get("graph_version", "v23.0")
 PLATFORMS = ["instagram", "facebook", "youtube"]
@@ -46,6 +46,8 @@ def get_video(job):
     out.parent.mkdir(parents=True, exist_ok=True)
     repo, tok = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GH_TOKEN")
     want = f"{job['id']}_v{job['version']}.mp4"
+    if fetch_video(want, out):
+        return out
     if repo and tok:
         h = {"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}
         arts = requests.get(f"https://api.github.com/repos/{repo}/actions/artifacts",

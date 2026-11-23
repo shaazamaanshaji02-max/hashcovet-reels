@@ -1,0 +1,13 @@
+name: migrate-videos
+on: workflow_dispatch
+permissions: { contents: read, actions: read }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install requests
+      - env: { GH_TOKEN: "${{ github.token }}", DATA_TOKEN: "${{ secrets.DATA_TOKEN }}" }
+        run: python scripts/migrate_videos.py

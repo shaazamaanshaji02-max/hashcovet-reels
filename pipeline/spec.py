@@ -1,7 +1,7 @@
 """The reel spec: one JSON object drives script, voiceover, visuals, caption and hashtags."""
 
 ICONS = ["logo", "headphones", "mute", "captions", "list", "heart", "tag", "megaphone", "tv", "bulb",
-         "phone", "mic", "camera", "clock", "chart", "eye", "play", "star", "cart", "users", "light", "scissors"]
+         "phone", "mic", "camera", "clock", "chart", "eye", "play", "star", "cart", "users", "light", "scissors", "globe", "code", "rocket", "calendar", "chat", "wallet", "search", "gear", "pin", "mail", "store", "laptop", "money", "shield"]
 
 SCHEMA_DOC = """{
   "topic": "short topic name (for de-duplication)",

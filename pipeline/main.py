@@ -759,8 +759,10 @@ def act_health(force=False):
     try:
         import requests
         repo, tok = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GH_TOKEN")
-        if repo and tok:
-            h = {"Authorization": f"Bearer {tok}"}
+        h = {"Authorization": f"Bearer {tok}"} if tok else {}
+        if repo and tok and not requests.get(f"https://api.github.com/repos/{repo}", headers=h, timeout=30).json().get("private", True):
+            oks.append("✅ GitHub minutes: unlimited (code project is public; private data kept in hashcovet-reels-data)")
+        elif repo and tok:
             first = ist_now().date().replace(day=1).isoformat()
             used = 0
             for page in range(1, 6):

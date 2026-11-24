@@ -1115,6 +1115,10 @@ if __name__ == "__main__":
         elif a == "voicecheck": act_voicecheck()
         elif a == "posted": act_posted()
         elif a == "health": act_health(force=True)
+        elif a == "suggest":   # re-send the 💡 suggestion buttons (e.g. if sending them failed) without the report
+            import analytics, suggestions
+            _, _, d = analytics.build(job or "week"); analytics.ai_reading(d)
+            suggestions.offer(analytics.LAST_ACTIONS, f"{job or 'week'} report")
         elif a == "report":
             import analytics
             analytics.send((t or j or "day").strip().lower().split()[0] if (t or j) else "day")

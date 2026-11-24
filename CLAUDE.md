@@ -168,6 +168,7 @@ GitHub Actions secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `HF_TOKEN`, `G
 and no Telegram token → messages print instead of sending.
 
 ## Status log (update when you change something)
+- 2026-11-24: Fix: "sgn failed: git push failed" — two team members pressed suggestion buttons at the same moment; both runs edited memory/next_video.json and the rebase conflicted. common._commit_push now resolves rebase conflicts itself: JSON files are merged (union of both versions), other files keep this run's version; 6 push tries. Lost press (gabe09d → Next video only) re-run.
 - 2026-11-24: Action `suggest` [job=day|week|month, default week] re-sends only the 💡 suggestion buttons (fresh AI reading), no report. Used once to replace the 23 Nov suggestions lost to the Telegram drop.
 - 2026-11-24: Fix: 21:30 auto report (23 Nov) crashed AFTER the report was sent — Telegram reset the connection while sending the 💡 suggestions. common.tg now retries 4× on connection drops/timeouts and waits on 429; analytics.send never fails the run over suggestions.
 - 2026-11-23: ✅ 12:30 post of 2026-11-23 went out on Instagram, Facebook and YouTube (public) — first post after the repo split; video fetched from the private release.

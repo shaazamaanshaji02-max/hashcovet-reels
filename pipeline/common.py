@@ -91,16 +91,59 @@ DATA = ROOT / "_data"   # private data repo checkout (scripts/use_data.sh); jobs
 DATA_PATHS = ("jobs", "memory", "data", "assets/voice", "config.json")
 
 
+def _merge_json(a, b):
+    """Union of two versions of a data file (two team members pressing buttons at the same moment)."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = dict(a)
+        for k, v in b.items():
+            out[k] = _merge_json(a[k], v) if k in a else v
+        return out
+    if isinstance(a, list) and isinstance(b, list):
+        out = list(a)
+        for x in b:
+            if x not in out:
+                out.append(x)
+        return out
+    return b
+
+
+def _resolve_conflicts(cwd):
+    """During a rebase: merge conflicted JSON files by union, other files keep our version."""
+    env = {**os.environ, "GIT_EDITOR": "true"}
+    for _ in range(20):
+        files = subprocess.run(["git", "diff", "--name-only", "--diff-filter=U"], cwd=cwd,
+                               capture_output=True, text=True).stdout.split()
+        if not files:
+            r = subprocess.run(["git", "rebase", "--continue"], cwd=cwd, env=env)
+            if r.returncode == 0 or not Path(cwd, ".git", "rebase-merge").exists() and not Path(cwd, ".git", "rebase-apply").exists():
+                return True
+            continue
+        for f in files:
+            def show(stage):
+                r = subprocess.run(["git", "show", f":{stage}:{f}"], cwd=cwd, capture_output=True, text=True)
+                return r.stdout if r.returncode == 0 else None
+            up, mine = show(2), show(3)      # in a rebase: 2 = remote (upstream), 3 = this run's commit
+            try:
+                merged = _merge_json(json.loads(up or "null"), json.loads(mine or "null"))
+                Path(cwd, f).write_text(json.dumps(merged, indent=2, ensure_ascii=False))
+            except Exception:
+                Path(cwd, f).write_text(mine if mine is not None else (up or ""))
+            subprocess.run(["git", "add", f], cwd=cwd)
+    subprocess.run(["git", "rebase", "--abort"], cwd=cwd)
+    return False
+
+
 def _commit_push(cwd, paths, msg):
     subprocess.run(["git", "add", "-A", *paths], cwd=cwd, check=False)
     if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=cwd).returncode == 0:
         return
     subprocess.run(["git", "commit", "-q", "-m", msg], cwd=cwd, check=True)
-    for _ in range(4):
+    for attempt in range(6):
         if subprocess.run(["git", "push", "-q"], cwd=cwd).returncode == 0:
             return
-        subprocess.run(["git", "pull", "-q", "--rebase"], cwd=cwd)
-        time.sleep(3)
+        if subprocess.run(["git", "pull", "-q", "--rebase"], cwd=cwd).returncode != 0:
+            _resolve_conflicts(cwd)
+        time.sleep(2 + attempt * 2)
     raise RuntimeError("git push failed")
 
 

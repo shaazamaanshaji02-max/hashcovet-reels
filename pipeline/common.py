@@ -181,8 +181,21 @@ def tg(method, files=None, **data):
     for k, v in list(data.items()):
         if isinstance(v, (dict, list)):
             data[k] = json.dumps(v)
-    r = requests.post(f"https://api.telegram.org/bot{token}/{method}", data=data, files=files, timeout=120)
-    j = r.json()
+    for attempt in range(4):   # Telegram sometimes drops the connection for a moment: retry instead of crashing
+        try:
+            for f in (files or {}).values():
+                fo = f[1] if isinstance(f, tuple) else f
+                if hasattr(fo, "seek"):
+                    fo.seek(0)
+            r = requests.post(f"https://api.telegram.org/bot{token}/{method}", data=data, files=files, timeout=120)
+            j = r.json()
+            if j.get("error_code") == 429:
+                time.sleep(int(j.get("parameters", {}).get("retry_after", 5)) + 1); continue
+            break
+        except (requests.ConnectionError, requests.Timeout, ValueError) as e:
+            if attempt == 3:
+                raise
+            print("telegram retry after:", type(e).__name__); time.sleep(5 * (attempt + 1))
     if not j.get("ok"):
         raise RuntimeError(f"Telegram {method} failed: {j}")
     return j["result"]

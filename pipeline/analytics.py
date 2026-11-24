@@ -462,8 +462,11 @@ def send(period="day"):
                caption=f"📊 Views per reel — {period}")
     send_text(text, kb([[("📅 Today", "a|report|day"), ("🗓 This week", "a|report|week"), ("📆 This month", "a|report|month")]]))
     if LAST_ACTIONS:
-        import suggestions
-        suggestions.offer(LAST_ACTIONS, f"{period} report")
+        try:
+            import suggestions
+            suggestions.offer(LAST_ACTIONS, f"{period} report")
+        except Exception as e:   # the report itself is already sent; never fail the run over suggestions
+            print("suggestions failed:", e)
 
 
 if __name__ == "__main__":
